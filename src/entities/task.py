@@ -1,10 +1,4 @@
 class Task:
-    id: int
-    name: str
-    day_id: int
-    type: str
-    status: str
-
     def __init__(self, name: str, day_id: int, type: str, status: str, task_id: int = None):
         self.name = name
         self.day_id = day_id

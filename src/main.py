@@ -5,8 +5,11 @@ from flask import request
 
 import entities
 import repository
+import migration
 
 app = Flask(__name__)
+migration.create_database_and_tables()
+repository.set_zero_day()
 
 
 @app.route("/api/tasks", methods=["POST"])
@@ -21,4 +24,9 @@ def create_task():
 
     new_task = entities.Task(request_body['name'], 0, 'one-time', 'active')
     repository.insert_task(new_task)
-    return json.dumps(new_task.__dict__), 200
+    return json.dumps(new_task.to_dict()), 200
+
+
+# @app.route("/api/day/current", methods=["GET"])
+# def get_current_day():
+#
