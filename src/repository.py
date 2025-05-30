@@ -42,6 +42,65 @@ def set_zero_day(day: entities.Day):
             insert_day(zero_day)
 
 
-# def get_active_day():
-#
-# def get_day_by_id(day_id: int):
+def get_active_day():
+    with sqlite3.connect(config.DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        select_active_day_sql = """
+            SELECT * FROM days
+            WHERE active = 1;
+        """
+        cursor.execute(select_active_day_sql)
+        day_data = cursor.fetchone()
+        if day_data is None:
+            return None
+        return entities.Day(
+            day_id = day_data['id'],
+            year = day_data['year'],
+            season = day_data['season'],
+            number = day_data['number'],
+            active = bool(day_data['active'])
+            )
+
+def get_day_by_id(day_id: int):
+    with sqlite3.connect(config.DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        select_day_by_id_sql = """
+            SELECT * FROM days
+            WHERE id = ?;
+        """
+        data = (day_id,)
+        cursor.execute(select_day_by_id_sql, data)
+        day_data = cursor.fetchone()
+        if day_data is None:
+            return None
+        return entities.Day(
+            day_id = day_data['id'],
+            year = day_data['year'],
+            season = day_data['season'],
+            number = day_data['number'],
+            active = bool(day_data['active'])
+            )
+
+def get_tasks_for_day(day_id: int):
+    with sqlite3.connect(config.DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        select_tasks_for_day_sql = """
+            SELECT * FROM tasks
+            WHERE day_id = ?;
+        """
+        data = (day_id,)
+        cursor.execute(select_tasks_for_day_sql, data)
+        tasks_data = cursor.fetchall()
+        tasks = []
+        for task_data in tasks_data:
+            tasks.append(entities.Task(
+                task_id = task_data['id'],
+                name = task_data['name'],
+                day_id = task_data['day_id'],
+                type = task_data['type'],
+                status = task_data['status']
+                ))
+        return tasks

@@ -9,7 +9,7 @@ import migration
 
 app = Flask(__name__)
 migration.create_database_and_tables()
-repository.set_zero_day()
+# repository.set_zero_day()
 
 
 @app.route("/api/tasks", methods=["POST"])
@@ -27,6 +27,5 @@ def create_task():
     return json.dumps(new_task.to_dict()), 200
 
 
-# @app.route("/api/day/current", methods=["GET"])
-# def get_current_day():
-#
+@app.route("/api/day/current", methods=["GET"])
+def get_current_day():
