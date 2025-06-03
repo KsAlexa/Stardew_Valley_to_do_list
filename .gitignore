@@ -11,6 +11,8 @@ db/todo_list.sqlite
 # idea
 .idea
 
+.windsurfrules
+
 # Distribution / packaging
 .Python
 build/

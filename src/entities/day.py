@@ -5,3 +5,12 @@ class Day:
         self.season = season
         self.number = number
         self.active = active
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "year": self.year,
+            "season": self.season,
+            "number": self.number,
+            "active": self.activeS
+        }

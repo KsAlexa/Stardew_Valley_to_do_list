@@ -5,12 +5,12 @@ import config
 def insert_task(task: entities.Task):
     with sqlite3.connect(config.DB_PATH) as conn:
         cursor = conn.cursor()
-        insert_sql = """
+        insert_task_sql = """
                      INSERT INTO tasks (name, day_id, type, status)
                      VALUES (?, ?, ?, ?);
                      """
         data = (task.name, task.day_id, task.type, task.status)
-        cursor.execute(insert_sql, data)
+        cursor.execute(insert_task_sql, data)
         conn.commit()
         task.id = cursor.lastrowid
 
@@ -27,7 +27,7 @@ def insert_day(day: entities.Day):
         conn.commit()
         day.id = cursor.lastrowid
 
-def set_zero_day(day: entities.Day):
+def set_zero_day():
     with sqlite3.connect(config.DB_PATH) as conn:
         cursor = conn.cursor()
         select_zero_day_sql = """
@@ -40,6 +40,28 @@ def set_zero_day(day: entities.Day):
         if existing_day_id is None:
             zero_day = entities.Day(year=0, season='undefined', number=0, active=False)
             insert_day(zero_day)
+
+
+def get_zero_day():
+    with sqlite3.connect(config.DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        select_zero_day_sql = """
+            SELECT * FROM days 
+            WHERE year = ? AND number = ? AND season = ?;
+            """
+        data = (0, 0, 'undefined')
+        cursor.execute(select_zero_day_sql, data)
+        day_data = cursor.fetchone()
+        if day_data is None:
+            return None
+        return entities.Day(
+            day_id = day_data['id'],
+            year = day_data['year'],
+            season = day_data['season'],
+            number = day_data['number'],
+            active = bool(day_data['active'])
+            )
 
 
 def get_active_day():
@@ -83,7 +105,7 @@ def get_day_by_id(day_id: int):
             active = bool(day_data['active'])
             )
 
-def get_tasks_for_day(day_id: int):
+def get_tasks_by_day_id(day_id: int):
     with sqlite3.connect(config.DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
