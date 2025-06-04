@@ -1,18 +1,6 @@
-import entities
+from .. import entities
 import sqlite3
-import config
-
-def insert_task(task: entities.Task):
-    with sqlite3.connect(config.DB_PATH) as conn:
-        cursor = conn.cursor()
-        insert_task_sql = """
-                     INSERT INTO tasks (name, day_id, type, status)
-                     VALUES (?, ?, ?, ?);
-                     """
-        data = (task.name, task.day_id, task.type, task.status)
-        cursor.execute(insert_task_sql, data)
-        conn.commit()
-        task.id = cursor.lastrowid
+from .. import config
 
 
 def insert_day(day: entities.Day):
@@ -105,24 +93,35 @@ def get_day_by_id(day_id: int):
             active = bool(day_data['active'])
             )
 
-def get_tasks_by_day_id(day_id: int):
+def get_day_by_attributes(year: int, season: str, number: int):
     with sqlite3.connect(config.DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        select_tasks_for_day_sql = """
-            SELECT * FROM tasks
-            WHERE day_id = ?;
+        select_day_by_attributes_sql = """
+            SELECT * FROM days
+            WHERE year = ? AND season = ? AND number = ?;
         """
-        data = (day_id,)
-        cursor.execute(select_tasks_for_day_sql, data)
-        tasks_data = cursor.fetchall()
-        tasks = []
-        for task_data in tasks_data:
-            tasks.append(entities.Task(
-                task_id = task_data['id'],
-                name = task_data['name'],
-                day_id = task_data['day_id'],
-                type = task_data['type'],
-                status = task_data['status']
-                ))
-        return tasks
+        data = (year, season, number)
+        cursor.execute(select_day_by_attributes_sql, data)
+        day_data = cursor.fetchone()
+        if day_data is None:
+            return None
+        return entities.Day(
+            day_id = day_data['id'],
+            year = day_data['year'],
+            season = day_data['season'],
+            number = day_data['number'],
+            active = bool(day_data['active'])
+            )
+
+def update_day_active(day: entities.Day):
+    with sqlite3.connect(config.DB_PATH) as conn:
+        cursor = conn.cursor()
+        update_day_active_sql = """
+            UPDATE days
+            SET active = ?
+            WHERE id = ?;
+        """
+        data = (day.active, day.id)
+        cursor.execute(update_day_active_sql, data)
+        conn.commit()

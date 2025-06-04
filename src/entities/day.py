@@ -12,5 +12,5 @@ class Day:
             "year": self.year,
             "season": self.season,
             "number": self.number,
-            "active": self.activeS
+            "active": self.active
         }

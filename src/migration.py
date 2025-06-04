@@ -1,5 +1,5 @@
 import sqlite3
-import config
+from . import config
 
 def create_database_and_tables():
     with sqlite3.connect(config.DB_PATH) as conn:

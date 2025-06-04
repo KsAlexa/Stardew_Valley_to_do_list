@@ -1,9 +1,9 @@
 from flask import Blueprint, request, json
-from .. import repository
-from ..import entities
-from day import _get_current_display_day
+from src import repository
+from src import entities
+from .day import _get_current_display_day
 
-task_bp = Blueprint('day_api', __name__, url_prefix='/api/task')
+task_bp = Blueprint('task_api', __name__, url_prefix='/api/task')
 
 @task_bp.route("", methods=["POST"])
 def create_task():
