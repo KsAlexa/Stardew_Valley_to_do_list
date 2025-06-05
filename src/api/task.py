@@ -1,22 +1,16 @@
 from flask import Blueprint, request, json
 from src import repository
 from src import entities
-from .day import _get_current_display_day
+from .day import _get_active_day_details
 
 task_bp = Blueprint('task_api', __name__, url_prefix='/api/task')
 
 @task_bp.route("", methods=["POST"])
 def create_task():
-    current_day = _get_current_display_day()
+    current_day = repository.get_active_day()
 
-    is_zero_day = (current_day.year == 0 and
-                   current_day.number == 0 and
-                   current_day.season == 'undefined')
-
-    if is_zero_day:
-        return json.dumps({'error': 'Set a day first'}), 400
-    if not current_day.active:
-        return json.dumps({'error': 'Day is not active'}), 400
+    if current_day is None:
+        return json.dumps({'error': 'No active day set. Cannot add task'}), 400
 
     request_body = request.get_json()
 

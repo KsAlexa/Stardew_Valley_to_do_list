@@ -1,45 +1,53 @@
 from flask import Blueprint, request, json
+
+from .models import CurrentDayResponse
 from .. import repository
 from .. import entities
 
 day_bp = Blueprint('day_api', __name__, url_prefix='/api/day')
 
+# нужна ли вообще эта отдельная функция?
+# def _get_current_display_day():
+#     current_display_day = repository.get_active_day()
+#     if current_display_day is None:
+#         return None # или json.dumps({'error': 'Set a day first'}), 500 или ручки должны обрабатывать это
+#     return current_display_day # здесь надо возвращать объект Day или CurrentDayResponse?
 
-def _get_current_display_day():
-    current_display_day = repository.get_active_day()
-    if current_display_day is None:
-        current_display_day = repository.get_zero_day()
-        if current_display_day is None:
-            return json.dumps({'error': 'Zero day not found'}), 500
-    return current_display_day
+def _get_active_day_details():
+    current_active_day = repository.get_active_day()
+    if current_active_day is None:
+        return None
+    day_tasks = repository.get_tasks_by_day_id(current_active_day.id)
+    current_day_details = CurrentDayResponse(
+        day_id = current_active_day.id,
+        year = current_active_day.year,
+        season = current_active_day.season,
+        number = current_active_day.number,
+        tasks = day_tasks
+    )
+    return current_day_details
 
 
 @day_bp.route("/current", methods=["GET"])
 def get_current_day_info():
-    current_day = _get_current_display_day()
+    # получить активный день из базы,
+    # если его нет - вернуть ошибку, что текущий день не задан
+    # иначе также достать все tasks для текущего дня и положить в CurrentDayResponse
+    # и вернуть сериализованный в жсон этот CurrentDayResponse
 
-    is_zero_day = (current_day.year == 0 and
-                   current_day.number == 0 and
-                   current_day.season == 'undefined')
+    current_day = _get_active_day_details()
+    if current_day is None:
+        return json.dumps({'error': 'No active day. Set a day first'}), 500
 
-    day_info = current_day.to_dict()
-    day_info['tasks'] = []
+    return json.dumps(current_day.to_dict()), 200
 
-    if is_zero_day:
-        day_info['tasks'] = []
-        day_info['message'] = 'Set a day first'
-    elif not is_zero_day and not current_day.active:
-            day_info['tasks'] = []
-            day_info['message'] = 'Day is not active'
-    elif not is_zero_day and current_day.active:
-            tasks_list = repository.get_tasks_by_day_id(current_day.id)
-            day_info['tasks'] = [task.to_dict() for task in tasks_list]
-    return json.dumps(day_info), 200
+
 
 @day_bp.route("/current", methods=["PUT"])
 def set_current_day():
     request_body = request.get_json()
 
+    # эту валидацию наверно надо че то куда то перенести
     required_fields = ['year', 'season', 'number']
     for field in required_fields:
         if field not in request_body:
@@ -54,29 +62,58 @@ def set_current_day():
     if request_body['season'] not in ['spring', 'summer', 'autumn', 'winter']:
         return json.dumps({'error': 'Season must be spring, summer, autumn or winter'}), 400
 
-    target_day = repository.get_day_by_attributes(request_body['year'], request_body['season'], request_body['number'])
+    requested_day = entities.Day(
+        year = request_body['year'],
+        season = request_body['season'],
+        number = request_body['number'],
+        active = True
+    )
+
+    requested_day_from_db = repository.get_day_by_attributes(requested_day.year, requested_day.season, requested_day.number)
     previous_active_day = repository.get_active_day()
 
-    if target_day is None:
-        new_day = entities.Day(year=request_body['year'], season=request_body['season'], number=request_body['number'], active=True)
-        repository.insert_day(new_day)
+    if requested_day_from_db is None:
+        repository.insert_day(requested_day)
         if previous_active_day:
             previous_active_day.active = False
             repository.update_day_active(previous_active_day)
-        return json.dumps(new_day.to_dict()), 200
+        return json.dumps(requested_day.to_dict()), 200
 
-    if previous_active_day and target_day.id != previous_active_day.id:
+    if previous_active_day and requested_day_from_db.id != previous_active_day.id:
         previous_active_day.active = False
         repository.update_day_active(previous_active_day)
 
-    target_day.active = True
-    repository.update_day_active(target_day)
-    return json.dumps(target_day.to_dict()), 200
+    requested_day_from_db.active = True
+    repository.update_day_active(requested_day_from_db)
+    return json.dumps(requested_day_from_db.to_dict()), 200
 
 
 
+@day_bp.route("/next", methods=["POST"])
+def set_next_day():
+    previous_active_day = repository.get_active_day()
+    if previous_active_day is None:
+        return json.dumps({'error': 'No active day set. Cannot define the next day.'}), 400
 
+    next_day = entities.Day(
+        year = previous_active_day['year'],
+        season = previous_active_day['season'],
+        number = previous_active_day['number']+1,
+        active = True
+    )
 
-# @day_bp.route("/next", methods=["POST"])
-# def next_day():
-#     current_day = _get_current_display_day()
+    next_day_from_db = repository.get_day_by_attributes(next_day.year, next_day.season, next_day.number)
+
+    if next_day_from_db is None:
+        repository.insert_day(next_day)
+        if previous_active_day:
+            previous_active_day.active = False
+            repository.update_day_active(previous_active_day)
+        return json.dumps(next_day.to_dict()), 200
+
+    next_day_from_db.active = True
+    repository.update_day_active(next_day_from_db)
+    previous_active_day.active = False
+    repository.update_day_active(previous_active_day)
+
+    return json.dumps(next_day_from_db.to_dict()), 200
