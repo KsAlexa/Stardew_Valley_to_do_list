@@ -11,8 +11,8 @@ def create_database_and_tables():
                                    primary key autoincrement,
                                name   TEXT not null,
                                day_id integer,
-                               type   TEXT,
-                               status TEXT,
+                               type   TEXT NOT NULL CHECK (type IN ('dayly', 'one-time')),
+                               status TEXT NOT NULL CHECK (type IN ('active', 'completed')),
                                FOREIGN KEY (day_id) REFERENCES days(id)
                            );
                            """

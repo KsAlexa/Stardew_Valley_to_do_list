@@ -3,6 +3,7 @@ import sqlite3
 from .. import config
 
 
+#надо ли добавить try-except sqlite3.Error
 def insert_day(day: entities.Day):
     with sqlite3.connect(config.DB_PATH) as conn:
         cursor = conn.cursor()
@@ -15,44 +16,8 @@ def insert_day(day: entities.Day):
         conn.commit()
         day.id = cursor.lastrowid
 
-# def set_zero_day():
-#     with sqlite3.connect(config.DB_PATH) as conn:
-#         cursor = conn.cursor()
-#         select_zero_day_sql = """
-#                 SELECT id FROM days
-#                 WHERE year = ? AND number = ? AND season = ?;
-#                 """
-#         data = (0, 0, 'undefined')
-#         cursor.execute(select_zero_day_sql, data)
-#         existing_day_id = cursor.fetchone()
-#         if existing_day_id is None:
-#             zero_day = entities.Day(year=0, season='undefined', number=0, active=False)
-#             insert_day(zero_day)
-#
-#
-# def get_zero_day():
-#     with sqlite3.connect(config.DB_PATH) as conn:
-#         conn.row_factory = sqlite3.Row
-#         cursor = conn.cursor()
-#         select_zero_day_sql = """
-#             SELECT * FROM days
-#             WHERE year = ? AND number = ? AND season = ?;
-#             """
-#         data = (0, 0, 'undefined')
-#         cursor.execute(select_zero_day_sql, data)
-#         day_data = cursor.fetchone()
-#         if day_data is None:
-#             return None
-#         return entities.Day(
-#             day_id = day_data['id'],
-#             year = day_data['year'],
-#             season = day_data['season'],
-#             number = day_data['number'],
-#             active = bool(day_data['active'])
-#             )
 
-
-def get_active_day():
+def get_active_day() -> entities.Day | None:
     with sqlite3.connect(config.DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -72,7 +37,7 @@ def get_active_day():
             active = bool(day_data['active'])
             )
 
-def get_day_by_id(day_id: int):
+def get_day_by_id(day_id: int) -> entities.Day | None:
     with sqlite3.connect(config.DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -93,7 +58,7 @@ def get_day_by_id(day_id: int):
             active = bool(day_data['active'])
             )
 
-def get_day_by_attributes(year: int, season: str, number: int):
+def get_day_by_attributes(year: int, season: str, number: int) -> entities.Day | None:
     with sqlite3.connect(config.DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -114,6 +79,9 @@ def get_day_by_attributes(year: int, season: str, number: int):
             active = bool(day_data['active'])
             )
 
+#надо ли добавить try-except sqlite3.Error
+# надо ли возвращать что то? например True/False
+# надо ли cursor.rowcount == 0
 def update_day_active(day: entities.Day):
     with sqlite3.connect(config.DB_PATH) as conn:
         cursor = conn.cursor()

@@ -28,3 +28,7 @@ def create_task():
     )
     repository.insert_task(new_task)
     return json.dumps(new_task.to_dict()), 200
+
+
+@task_bp.route("{id}/complete", methods=["PATCH"])
+def make_task_completed():

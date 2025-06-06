@@ -77,7 +77,7 @@ def set_current_day():
         if previous_active_day:
             previous_active_day.active = False
             repository.update_day_active(previous_active_day)
-        return json.dumps(requested_day.to_dict()), 200
+        return json.dumps(requested_day.to_dict()), 201
 
     if previous_active_day and requested_day_from_db.id != previous_active_day.id:
         previous_active_day.active = False
@@ -95,25 +95,40 @@ def set_next_day():
     if previous_active_day is None:
         return json.dumps({'error': 'No active day set. Cannot define the next day.'}), 400
 
-    next_day = entities.Day(
-        year = previous_active_day['year'],
-        season = previous_active_day['season'],
-        number = previous_active_day['number']+1,
-        active = True
-    )
+    next_day_year = previous_active_day.year
+    next_day_season = previous_active_day.season
+    next_day_number = previous_active_day.number + 1
 
-    next_day_from_db = repository.get_day_by_attributes(next_day.year, next_day.season, next_day.number)
+    # и эту валидацию наверно надо че то куда то перенести
+    max_day_per_season = 28
+    seasons_order = ['spring', 'summer', 'autumn', 'winter']
+    if next_day_number > max_day_per_season:
+        next_day_number = 1
+        next_day_season_index = seasons_order.index(next_day_season)
+        if next_day_season_index == len(seasons_order) - 1:
+            next_day_season = seasons_order[0]
+            next_day_year += 1
+        else:
+            next_day_season = seasons_order[next_day_season_index + 1]
+
+
+    next_day_from_db = repository.get_day_by_attributes(next_day_year, next_day_season, next_day_number)
 
     if next_day_from_db is None:
+        previous_active_day.active = False
+        repository.update_day_active(previous_active_day)
+        next_day = entities.Day(
+            year = next_day_year,
+            season = next_day_season,
+            number = next_day_number,
+            active = True
+        )
         repository.insert_day(next_day)
-        if previous_active_day:
-            previous_active_day.active = False
-            repository.update_day_active(previous_active_day)
-        return json.dumps(next_day.to_dict()), 200
+        return json.dumps(next_day.to_dict()), 201
 
-    next_day_from_db.active = True
-    repository.update_day_active(next_day_from_db)
     previous_active_day.active = False
     repository.update_day_active(previous_active_day)
+    next_day_from_db.active = True
+    repository.update_day_active(next_day_from_db)
 
     return json.dumps(next_day_from_db.to_dict()), 200
