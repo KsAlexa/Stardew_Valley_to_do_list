@@ -88,7 +88,7 @@ def set_current_day():
     return json.dumps(requested_day_from_db.to_dict()), 200
 
 
-
+# надо при перелистывании дня оставлять tasks type == daily, а tasks type == one-time помечать завершенными make_task_completed()
 @day_bp.route("/next", methods=["POST"])
 def set_next_day():
     previous_active_day = repository.get_active_day()
