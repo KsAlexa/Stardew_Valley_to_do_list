@@ -2,7 +2,6 @@ from flask import Blueprint, request, json
 from src import repository
 from src import entities
 from .day import _get_active_day_details
-from src.repository.task import _update_task_field
 
 task_bp = Blueprint('task_api', __name__, url_prefix='/api/task')
 
@@ -32,10 +31,11 @@ def create_task():
 
 
 @task_bp.route("/<int:id>/complete", methods=["PATCH"])
-def complete_task(id):
+def make_task_complete_route(id):
     current_day = _get_active_day_details()
     if current_day is None:
         return json.dumps({'error': 'No active day set. Cannot update task'}), 400
+
     task_id = id
     is_task_found_in_current_day = False
     target_task_object = None
@@ -55,7 +55,7 @@ def complete_task(id):
     return json.dumps(updated_task.to_dict()), 200
 
 @task_bp.route("/<int:id>/active", methods=["PATCH"])
-def active(id):
+def make_task_active_route(id):
     current_day = _get_active_day_details()
     if current_day is None:
         return json.dumps({'error': 'No active day set. Cannot update task'}), 400
@@ -65,17 +65,17 @@ def active(id):
         return json.dumps({'error': f'Task with ID {task_id} not found'}), 404
     if target_task.status == 'active' and target_task.day_id == current_day.id:
         return json.dumps({'error': f'Task with ID {task_id} is already active.'}), 400
-    repository.make_task_active(task_id)
-    _update_task_field(task_id, 'day_id', current_day.id) # тут как лучше обновлять day_id у функции make_task_active или здесь вручную?
+    repository.make_task_active(task_id, current_day.id)
     updated_task = repository.get_task_by_task_id(task_id)
     return json.dumps(updated_task.to_dict()), 200
 
 
 @task_bp.route("/<int:id>/daily", methods=["PATCH"])
-def daily_task(id):
+def make_task_daily_route(id):
     current_day = _get_active_day_details()
     if current_day is None:
         return json.dumps({'error': 'No active day set. Cannot update task'}), 400
+
     task_id = id
     is_task_found_in_current_day = False
     target_task_object = None
@@ -95,12 +95,12 @@ def daily_task(id):
     return json.dumps(updated_task.to_dict()), 200
 
 
-
 @task_bp.route("/<int:id>/one_time", methods=["PATCH"])
-def one_time_task(id):
+def make_task_one_time_route(id):
     current_day = _get_active_day_details()
     if current_day is None:
         return json.dumps({'error': 'No active day set. Cannot update task'}), 400
+
     task_id = id
     is_task_found_in_current_day = False
     target_task_object = None

@@ -11,5 +11,6 @@ class Task:
             "id": self.id,
             "name": self.name,
             "type": self.type,
-            "status": self.status
+            "status": self.status,
+            "day_id": self.day_id
         }

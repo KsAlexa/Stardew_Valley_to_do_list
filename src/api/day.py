@@ -1,3 +1,4 @@
+import flask
 from flask import Blueprint, request, json
 
 from .models import CurrentDayResponse
@@ -6,12 +7,6 @@ from .. import entities
 
 day_bp = Blueprint('day_api', __name__, url_prefix='/api/day')
 
-# нужна ли вообще эта отдельная функция?
-# def _get_current_display_day():
-#     current_display_day = repository.get_active_day()
-#     if current_display_day is None:
-#         return None # или json.dumps({'error': 'Set a day first'}), 500 или ручки должны обрабатывать это
-#     return current_display_day # здесь надо возвращать объект Day или CurrentDayResponse?
 
 def _get_active_day_details():
     current_active_day = repository.get_active_day()
@@ -28,19 +23,24 @@ def _get_active_day_details():
     return current_day_details
 
 
+def _move_tasks_to_current_day(previous_active_day_id, next_active_day_id):
+    previous_day_tasks = repository.get_tasks_by_day_id(previous_active_day_id)
+    for task in previous_day_tasks:
+        if task.type == 'daily':
+            task.day_id = next_active_day_id
+            repository.update_task_field(task.id, 'day_id', task.day_id)
+        if task.type == 'one-time':
+            task.status = 'completed'
+            repository.update_task_field(task.id, 'status', task.status)
+
+
 @day_bp.route("/current", methods=["GET"])
 def get_current_day_info():
-    # получить активный день из базы,
-    # если его нет - вернуть ошибку, что текущий день не задан
-    # иначе также достать все tasks для текущего дня и положить в CurrentDayResponse
-    # и вернуть сериализованный в жсон этот CurrentDayResponse
-
     current_day = _get_active_day_details()
     if current_day is None:
         return json.dumps({'error': 'No active day. Set a day first'}), 500
 
     return json.dumps(current_day.to_dict()), 200
-
 
 
 @day_bp.route("/current", methods=["PUT"])
@@ -77,7 +77,10 @@ def set_current_day():
         if previous_active_day:
             previous_active_day.active = False
             repository.update_day_active(previous_active_day)
-        return json.dumps(requested_day.to_dict()), 201
+            _move_tasks_to_current_day(previous_active_day.id, requested_day.id)
+        requested_day_details = _get_active_day_details()
+        # return flask.Response(json.dumps(requested_day_details.to_dict()), 201, mimetype="application/json")
+        return json.dumps(requested_day_details.to_dict()), 201
 
     if previous_active_day and requested_day_from_db.id != previous_active_day.id:
         previous_active_day.active = False
@@ -85,7 +88,9 @@ def set_current_day():
 
     requested_day_from_db.active = True
     repository.update_day_active(requested_day_from_db)
-    return json.dumps(requested_day_from_db.to_dict()), 200
+    _move_tasks_to_current_day(previous_active_day.id, requested_day_from_db.id)
+    requested_day_from_db_details = _get_active_day_details()
+    return json.dumps(requested_day_from_db_details.to_dict()), 200
 
 
 # надо при перелистывании дня оставлять tasks type == daily, а tasks type == one-time помечать завершенными make_task_completed()
@@ -99,7 +104,7 @@ def set_next_day():
     next_day_season = previous_active_day.season
     next_day_number = previous_active_day.number + 1
 
-    # и эту валидацию наверно надо че то куда то перенести
+    # и эту валидацию наверно надо куда то перенести
     max_day_per_season = 28
     seasons_order = ['spring', 'summer', 'autumn', 'winter']
     if next_day_number > max_day_per_season:
@@ -110,7 +115,6 @@ def set_next_day():
             next_day_year += 1
         else:
             next_day_season = seasons_order[next_day_season_index + 1]
-
 
     next_day_from_db = repository.get_day_by_attributes(next_day_year, next_day_season, next_day_number)
 
@@ -124,11 +128,15 @@ def set_next_day():
             active = True
         )
         repository.insert_day(next_day)
-        return json.dumps(next_day.to_dict()), 201
+        _move_tasks_to_current_day(previous_active_day.id, next_day.id)
+        next_day_details = _get_active_day_details()
+        return json.dumps(next_day_details.to_dict()), 201
 
     previous_active_day.active = False
     repository.update_day_active(previous_active_day)
     next_day_from_db.active = True
     repository.update_day_active(next_day_from_db)
+    _move_tasks_to_current_day(previous_active_day.id, next_day_from_db.id)
+    next_day_from_db_details = _get_active_day_details()
 
-    return json.dumps(next_day_from_db.to_dict()), 200
+    return json.dumps(next_day_from_db_details.to_dict()), 200

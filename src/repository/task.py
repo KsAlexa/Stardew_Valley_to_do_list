@@ -16,7 +16,7 @@ def insert_task(task: entities.Task):
         task.id = cursor.lastrowid
 
 
-def get_tasks_by_day_id(day_id: int) -> list | None:
+def get_tasks_by_day_id(day_id: int) -> list:
     with sqlite3.connect(config.DB_PATH) as conn:
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -29,6 +29,8 @@ def get_tasks_by_day_id(day_id: int) -> list | None:
         cursor.execute(select_tasks_for_day_sql, data)
         tasks_data = cursor.fetchall()
         tasks = []
+        if tasks_data is None:
+            return tasks
         for task_data in tasks_data:
             tasks.append(entities.Task(
                 task_id=task_data['id'],
@@ -63,7 +65,7 @@ def get_task_by_task_id(task_id: int) -> entities.Task | None:
         )
 
 
-def _update_task_field(task_id: int, field_name: str, new_value):
+def update_task_field(task_id: int, field_name: str, new_value):
     # if field_name not in ('status', 'type'):
     #     logger.error(f'Attempt to update invalid field \'{field_name}\' for task ID {task_id}. Valid fields are \'status\', \'type\'.')
     #     return False
@@ -92,26 +94,30 @@ def make_task_completed(task_id: int):
     if target_task is None:
         raise Exception("target task not found")
     target_task.status = 'completed'
-    _update_task_field(task_id, 'status', target_task.status)
+    update_task_field(task_id, 'status', target_task.status)
 
 
-def make_task_active(task_id: int):
+def make_task_active(task_id: int, task_day_id: int):
     target_task = get_task_by_task_id(task_id)
     if target_task is None:
         raise Exception("target task not found")
     target_task.status = 'active'
-    _update_task_field(task_id, 'status', target_task.status)
+    update_task_field(task_id, 'status', target_task.status)
+    update_task_field(task_id, 'day_id', task_day_id)
 
 def make_task_daily(task_id: int):
     target_task = get_task_by_task_id(task_id)
     if target_task is None:
         raise Exception("target task not found")
     target_task.type = 'daily'
-    _update_task_field(task_id, 'type', target_task.type)
+    update_task_field(task_id, 'type', target_task.type)
 
 def make_task_one_time(task_id: int):
     target_task = get_task_by_task_id(task_id)
     if target_task is None:
         raise Exception("target task not found")
     target_task.type = 'one-time'
-    _update_task_field(task_id, 'type', target_task.type)
+    update_task_field(task_id, 'type', target_task.type)
+
+
+
