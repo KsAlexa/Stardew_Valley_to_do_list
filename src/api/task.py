@@ -1,17 +1,17 @@
+import flask
 from flask import Blueprint, request, json
-from src import repository
-from src import entities
+from .. import repository, config, services, errors
 from .day import _get_active_day_details
 
 task_bp = Blueprint('task_api', __name__, url_prefix='/api/task')
 
+day_repository = repository.DayRepository(config.DB_PATH)
+task_repository = repository.TaskRepository(config.DB_PATH)
+day_service = services.DayService(day_repository, task_repository)
+task_service = services.TaskService(task_repository, day_repository)
+
 @task_bp.route("", methods=["POST"])
-def create_task():
-    current_day = repository.get_active_day()
-
-    if current_day is None:
-        return json.dumps({'error': 'No active day set. Cannot add task'}), 400
-
+def create_task_handle():
     request_body = request.get_json()
 
     if 'name' not in request_body:
@@ -20,99 +20,54 @@ def create_task():
     if len(request_body['name']) == 0:
         return json.dumps({'error': 'Field name cannot be empty'}), 400
 
-    new_task = entities.Task(
-        name=request_body['name'],
-        day_id=current_day.id,
-        type='one-time',
-        status='active'
-    )
-    repository.insert_task(new_task)
-    return json.dumps(new_task.to_dict()), 200
+    try:
+        new_task = task_service.create_task(request_body['name'])
+    except errors.NotFoundException as e:
+        return json.dumps({'error': e.message}), 404
+
+    return flask.Response(json.dumps(new_task.to_dict()), 200, mimetype="application/json")
 
 
 @task_bp.route("/<int:id>/complete", methods=["PATCH"])
-def make_task_complete_route(id):
-    current_day = _get_active_day_details()
-    if current_day is None:
-        return json.dumps({'error': 'No active day set. Cannot update task'}), 400
+def make_task_complete_handle(id):
+    try:
+        task_service.make_task_complete(id)
+    except errors.NotFoundException as e:
+        return json.dumps({'error': e.message}), 404
+    except errors.InvalidStateException as e:
+        return json.dumps({'error': e.message}), 400
 
-    task_id = id
-    is_task_found_in_current_day = False
-    target_task_object = None
-    for task in current_day.tasks:
-        if task.id == task_id:
-            is_task_found_in_current_day = True
-            target_task_object = task
-            break
-    if not is_task_found_in_current_day:
-            return json.dumps({'error': f'Task with ID {task_id} not found in current active day'}), 404
-    if target_task_object.type != 'one-time':
-        return json.dumps({'error': f'Task with ID {task_id} cannot be completed. Only \'one-time\' tasks can be marked as complete.'}), 400
-    if target_task_object.status == 'completed':
-        return json.dumps({'error': f'Task with ID {task_id} is already completed.'}), 400
-    repository.make_task_completed(task_id)
-    updated_task = repository.get_task_by_task_id(task_id)
-    return json.dumps(updated_task.to_dict()), 200
+    return "", 200
 
 @task_bp.route("/<int:id>/active", methods=["PATCH"])
-def make_task_active_route(id):
-    current_day = _get_active_day_details()
-    if current_day is None:
-        return json.dumps({'error': 'No active day set. Cannot update task'}), 400
-    task_id = id
-    target_task = repository.get_task_by_task_id(task_id)
-    if target_task is None:
-        return json.dumps({'error': f'Task with ID {task_id} not found'}), 404
-    if target_task.status == 'active' and target_task.day_id == current_day.id:
-        return json.dumps({'error': f'Task with ID {task_id} is already active.'}), 400
-    repository.make_task_active(task_id, current_day.id)
-    updated_task = repository.get_task_by_task_id(task_id)
-    return json.dumps(updated_task.to_dict()), 200
+def make_task_active_handle(id):
+    try:
+        task_service.make_task_active(id)
+    except errors.NotFoundException as e:
+        return json.dumps({'error': e.message}), 404
+    except errors.InvalidStateException as e:
+        return json.dumps({'error': e.message}), 400
+
+    return "", 200
 
 
 @task_bp.route("/<int:id>/daily", methods=["PATCH"])
-def make_task_daily_route(id):
-    current_day = _get_active_day_details()
-    if current_day is None:
-        return json.dumps({'error': 'No active day set. Cannot update task'}), 400
+def make_task_daily_handle(id):
+    try:
+        task_service.make_task_daily(id)
+    except errors.NotFoundException as e:
+        return json.dumps({'error': e.message}), 404
+    except errors.InvalidStateException as e:
+        return json.dumps({'error': e.message}), 400
 
-    task_id = id
-    is_task_found_in_current_day = False
-    target_task_object = None
-    for task in current_day.tasks:
-        if task.id == task_id:
-            is_task_found_in_current_day = True
-            target_task_object = task
-            break
-    if not is_task_found_in_current_day:
-            return json.dumps({'error': f'Target task with ID {task_id} not found in current active day'}), 404
-    if target_task_object.type == 'daily':
-            return json.dumps(target_task_object.to_dict()), 200
-    if target_task_object.status == 'completed':
-        return json.dumps({'error': f'Task with ID {task_id} is completed. To make it a daily task, make it active first'}), 400
-    repository.make_task_daily(task_id)
-    updated_task = repository.get_task_by_task_id(task_id)
-    return json.dumps(updated_task.to_dict()), 200
+    return "", 200
 
 
 @task_bp.route("/<int:id>/one_time", methods=["PATCH"])
-def make_task_one_time_route(id):
-    current_day = _get_active_day_details()
-    if current_day is None:
-        return json.dumps({'error': 'No active day set. Cannot update task'}), 400
+def make_task_one_time_handle(id):
+    try:
+        task_service.make_task_one_time(id)
+    except errors.NotFoundException as e:
+        return json.dumps({'error': e.message}), 404
 
-    task_id = id
-    is_task_found_in_current_day = False
-    target_task_object = None
-    for task in current_day.tasks:
-        if task.id == task_id:
-            is_task_found_in_current_day = True
-            target_task_object = task
-            break
-    if not is_task_found_in_current_day:
-            return json.dumps({'error': f'Target task with ID {task_id} not found in current active day'}), 404
-    if target_task_object.type == 'one-time' or target_task_object.status == 'completed':
-        return json.dumps(target_task_object.to_dict()), 200
-    repository.make_task_one_time(task_id)
-    updated_task = repository.get_task_by_task_id(task_id)
-    return json.dumps(updated_task.to_dict()), 200
+    return "", 200
