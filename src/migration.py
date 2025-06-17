@@ -26,7 +26,7 @@ def create_database_and_tables():
                                year   integer,
                                season TEXT NOT NULL CHECK (season IN ('spring', 'summer', 'autumn', 'winter')),
                                number  integer, 
-                               active BOOLEAN
+                               current BOOLEAN
                            );
                            """
         cursor.execute(create_days_table_sql)

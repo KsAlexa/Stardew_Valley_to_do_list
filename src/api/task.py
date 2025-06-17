@@ -1,73 +1,46 @@
-import flask
-from flask import Blueprint, request, json
+from fastapi import APIRouter
+from .models import *
 from .. import repository, config, services, errors
-from .day import _get_active_day_details
 
-task_bp = Blueprint('task_api', __name__, url_prefix='/api/task')
+router = APIRouter(
+    prefix="/task",
+    tags=["task"],
+    responses={404: {'description': 'Entity not found'},
+               400: {'description': 'Invalid state'}
+               }
+)
 
 day_repository = repository.DayRepository(config.DB_PATH)
 task_repository = repository.TaskRepository(config.DB_PATH)
 day_service = services.DayService(day_repository, task_repository)
 task_service = services.TaskService(task_repository, day_repository)
 
-@task_bp.route("", methods=["POST"])
-def create_task_handle():
-    request_body = request.get_json()
 
-    if 'name' not in request_body:
-        return json.dumps({'error': 'Field name is required'}), 400
-
-    if len(request_body['name']) == 0:
-        return json.dumps({'error': 'Field name cannot be empty'}), 400
-
-    try:
-        new_task = task_service.create_task(request_body['name'])
-    except errors.NotFoundException as e:
-        return json.dumps({'error': e.message}), 404
-
-    return flask.Response(json.dumps(new_task.to_dict()), 200, mimetype="application/json")
+@router.post("/", status_code=200)
+def create_task_handle(request: AddTaskRequest) -> TaskResponse:
+    new_task = task_service.create_task(request.name)
+    return TaskResponse.from_task(new_task)
 
 
-@task_bp.route("/<int:id>/complete", methods=["PATCH"])
-def make_task_complete_handle(id):
-    try:
-        task_service.make_task_complete(id)
-    except errors.NotFoundException as e:
-        return json.dumps({'error': e.message}), 404
-    except errors.InvalidStateException as e:
-        return json.dumps({'error': e.message}), 400
-
-    return "", 200
-
-@task_bp.route("/<int:id>/active", methods=["PATCH"])
-def make_task_active_handle(id):
-    try:
-        task_service.make_task_active(id)
-    except errors.NotFoundException as e:
-        return json.dumps({'error': e.message}), 404
-    except errors.InvalidStateException as e:
-        return json.dumps({'error': e.message}), 400
-
-    return "", 200
+@router.patch("/{id}/complete", status_code=200)
+def make_task_complete_handle(id: int) -> TaskResponse:
+    updated_task = task_service.make_task_complete(id)
+    return TaskResponse.from_task(updated_task)
 
 
-@task_bp.route("/<int:id>/daily", methods=["PATCH"])
-def make_task_daily_handle(id):
-    try:
-        task_service.make_task_daily(id)
-    except errors.NotFoundException as e:
-        return json.dumps({'error': e.message}), 404
-    except errors.InvalidStateException as e:
-        return json.dumps({'error': e.message}), 400
-
-    return "", 200
+@router.patch("/{id}/active", status_code=200)
+def make_task_active_handle(id: int) -> TaskResponse:
+    updated_task = task_service.make_task_active(id)
+    return TaskResponse.from_task(updated_task)
 
 
-@task_bp.route("/<int:id>/one_time", methods=["PATCH"])
-def make_task_one_time_handle(id):
-    try:
-        task_service.make_task_one_time(id)
-    except errors.NotFoundException as e:
-        return json.dumps({'error': e.message}), 404
+@router.patch("/{id}/daily", status_code=200)
+def make_task_daily_handle(id: int) -> TaskResponse:
+    updated_task = task_service.make_task_daily(id)
+    return TaskResponse.from_task(updated_task)
 
-    return "", 200
+
+@router.patch("/{id}/one_time", status_code=200)
+def make_task_one_time_handle(id: int) -> TaskResponse:
+    updated_task = task_service.make_task_one_time(id)
+    return TaskResponse.from_task(updated_task)

@@ -1,27 +1,49 @@
+from enum import Enum
 from typing import List
-
 from src import entities
+from pydantic import BaseModel, Field, ConfigDict
 
 
-class CurrentDayResponse:
-    def __init__(self, day_id: int, year: int, season: str, number: int, tasks: List[entities.Task]):
-        self.id = day_id
-        self.year = year
-        self.season = season
-        self.number = number
-        self.active = True
-        self.tasks = tasks
+class AddTaskRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    name: str = Field(min_length=1)
 
-    def to_dict(self):
-        tasks_list_as_dict = []
-        for task_entity in self.tasks:
-            tasks_list_as_dict.append(task_entity.to_dict())
 
-        return {
-            'id': self.id,
-            'year': self.year,
-            'season': self.season,
-            'number': self.number,
-            'active': self.active,
-            'tasks': tasks_list_as_dict
-        }
+class TaskResponse(BaseModel):
+    id: int
+    name: str
+    type: str
+    day_id: int
+    status: str
+
+    @classmethod
+    def from_task(cls, task: entities.Task) -> 'TaskResponse':
+        return cls(
+            id=task.id,
+            name=task.name,
+            type=task.type,
+            day_id=task.day_id,
+            status=task.status
+        )
+
+
+class Season(str, Enum):
+    spring = 'spring'
+    summer = 'summer'
+    autumn = 'autumn'
+    winter = 'winter'
+
+
+class SetCurrentDayRequest(BaseModel):
+    year: int = Field(gt=0, description='Year must be a positive integer')
+    season: Season
+    number: int = Field(gt=0, le=28, description='Number must be a positive integer between 1 and 28')
+
+
+class DayResponse(BaseModel):
+    id: int
+    year: int
+    season: str
+    number: int
+    active: bool
+    tasks: List[TaskResponse] | None = None

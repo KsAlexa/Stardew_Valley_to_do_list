@@ -5,12 +5,3 @@ class Task:
         self.type = type
         self.status = status
         self.id = task_id
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "type": self.type,
-            "status": self.status,
-            "day_id": self.day_id
-        }

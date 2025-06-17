@@ -1,7 +1,7 @@
-class NotFoundException(BaseException):
+class NotFoundException(Exception):
     def __init__(self, message: str):
         self.message = message
 
-class InvalidStateException(BaseException):
+class InvalidTaskStateException(Exception):
     def __init__(self, message: str):
         self.message = message

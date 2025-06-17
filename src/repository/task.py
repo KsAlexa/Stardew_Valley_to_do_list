@@ -68,16 +68,6 @@ class TaskRepository:
     
     
     def update_field(self, task_id: int, field_name: str, new_value):
-        # if field_name not in ('status', 'type'):
-        #     logger.error(f'Attempt to update invalid field \'{field_name}\' for task ID {task_id}. Valid fields are \'status\', \'type\'.')
-        #     return False
-        # if field_name == 'status' and new_value not in ('active', 'completed'):
-        #     logger.error(f'Attempt to pass invalid value \'{new_value}\' of field \'{field_name}\' for task ID {task_id}. Valid values are \'active\', \'completed\'.')
-        #     return False
-        # elif field_name == 'type' and new_value not in ('daily', 'one-time'):
-        #     logger.error(f'Attempt to pass invalid value \'{new_value}\' of field \'{field_name}\' for task ID {task_id}. Valid values are \'daily\', \'one-time\'.')
-        #     return False
-    
         with sqlite3.connect(self.connection_string) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()

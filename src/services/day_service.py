@@ -44,7 +44,7 @@ class DayService:
         previous_active_day = self.day_repository.get_active()
 
         if previous_active_day is None:
-            raise errors.NotFoundException("No active day set. Cannot set the next day")
+            raise errors.NotFoundException('No active day set. Cannot set the next day')
 
         next_day_year = previous_active_day.year
         next_day_season = previous_active_day.season
