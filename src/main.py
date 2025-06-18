@@ -1,17 +1,42 @@
 from fastapi import FastAPI
-# import logging
-from . import migration
-from . api import *
+from contextlib import asynccontextmanager
 
-app = FastAPI()
-migration.create_database_and_tables()
+from starlette.datastructures import State
+
+from . import migration, config
+from .api import *
+from .repository import DayRepository, TaskRepository
+from .services import DayService, TaskService
 
 
-app.include_router(day.router)
-app.include_router(task.router)
+class ApplicationState(State):
+    day_service: DayService
+    task_service: TaskService
 
-# logger = logging.getLogger(__name__)
-# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-#
-# if __name__ == '__main__':
-#     app.run(debug=True)
+
+class Application(FastAPI):
+    state: ApplicationState
+
+
+@asynccontextmanager
+async def lifespan(application: Application):
+    print("Starting lifespan")
+    print("Building dependencies")
+
+    task_repository = TaskRepository(config.DB_PATH)
+    day_repository = DayRepository(config.DB_PATH)
+    day_service = DayService(day_repository, task_repository)
+    task_service = TaskService(task_repository, day_service)
+
+    application.state.day_service = day_service
+    application.state.task_service = task_service
+    print("Dependencies built")
+    migration.create_database_and_tables(config.DB_PATH)
+    yield
+    print("Exiting lifespan")
+
+
+app = Application(lifespan=lifespan)
+
+app.include_router(day_handlers.router)
+app.include_router(task_handlers.router)

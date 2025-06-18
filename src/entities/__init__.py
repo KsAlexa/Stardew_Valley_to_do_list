@@ -1,2 +1,2 @@
-from .task import *
-from .day import *
+from .task_entities import *
+from .day_entities import *

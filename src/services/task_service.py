@@ -1,115 +1,80 @@
-import json
-
 from src import repository, entities, errors
-from src.api import task_repository
+from .day_service import DayService
 
 
 class TaskService:
-    def __init__(self, task_repository: repository.TaskRepository, day_repository: repository.DayRepository):
-        self.day_repository = day_repository
+    def __init__(self, task_repository: repository.TaskRepository, day_service: DayService):
+        self.day_service = day_service
         self.task_repository = task_repository
 
     def get_all_by_day_id(self, day_id: int):
         return self.task_repository.get_all_by_day_id(day_id)
 
+    def get_by_id(self, id: int) -> entities.Task:
+        task = self.task_repository.get_by_id(id)
+        if task is None:
+            raise errors.TaskNotFoundException(f'Task with id {id} not found')
+        return task
+
     def create_task(self, name: str):
-        current_day = self.day_repository.get_active()
-
-        if current_day is None:
-            raise errors.NotFoundException('No active day set. Cannot add task')
-
+        current_day = self.day_service.get_active()
         new_task = entities.Task(
-            name = name,
-            day_id = current_day.id,
-            type = 'one-time',
-            status = 'active'
+            name=name,
+            day_id=current_day.id,
+            type='one-time',
+            status='active'
         )
         self.task_repository.insert(new_task)
         return new_task
 
-    def make_task_complete(self, id: int):
-        current_day = self.day_repository.get_active()
+    def make_completed(self, id: int):
+        current_day = self.day_service.get_active()
+        task = self.get_by_id(id)
 
-        if current_day is None:
-            raise errors.NotFoundException('No active day set. Cannot update task')
+        if task.day_id != current_day.id:
+            raise errors.InternalException(f'Task with ID {id} not found in current active day')
+        if task.type != 'one-time':
+            raise errors.InvalidTaskStateException(
+                f'Task with ID {id} cannot be completed. Only \'one-time\' tasks can be marked as completed')
+        if task.status == 'completed':
+            raise errors.InvalidTaskStateException(f'Task with ID {id} is already completed.')
 
-        day_tasks = task_repository.get_all_by_day_id(current_day.id)
+        self.task_repository.make_completed(id)
+        updated_task = self.get_by_id(id)
 
-        task_id = id
-        is_task_found_in_current_day = False
-        target_task_object = None
-        for task in day_tasks:
-            if task.id == task_id:
-                is_task_found_in_current_day = True
-                target_task_object = task
-                break
-        if not is_task_found_in_current_day:
-            raise errors.NotFoundException(f'Task with ID {task_id} not found in current active day')
-        if target_task_object.type != 'one-time':
-            raise errors.InvalidTaskStateException(f'Task with ID {task_id} cannot be completed. Only \'one-time\' tasks can be marked as complete')
-        if target_task_object.status == 'completed':
-            raise errors.InvalidTaskStateException(f'Task with ID {task_id} is already completed.')
-        task_repository.make_completed(task_id)
-        updated_task = task_repository.get_by_id(task_id)
         return updated_task
 
-    def make_task_active(self, id: int):
-        current_day = self.day_repository.get_active()
+    def make_active(self, id: int):
+        current_day = self.day_service.get_active()
+        task = self.get_by_id(id)
 
-        if current_day is None:
-            raise errors.NotFoundException('No active day set. Cannot update task')
+        if task.status == 'active' and task.day_id == current_day.id:
+            raise errors.InvalidTaskStateException(f'Task with ID {id} is already active.')
 
-        task_id = id
-        target_task = task_repository.get_by_id(task_id)
-        if target_task is None:
-            raise errors.NotFoundException(f'Task with ID {task_id} not found')
-        if target_task.status == 'active' and target_task.day_id == current_day.id:
-            raise errors.InvalidTaskStateException(f'Task with ID {task_id} is already active.')
-        task_repository.make_active(task_id, current_day.id)
-        updated_task = task_repository.get_by_id(task_id)
+        self.task_repository.make_active(id, current_day.id)
+        updated_task = self.task_repository.get_by_id(id)
         return updated_task
 
-    def make_task_daily(self, id: int):
-        current_day = self.day_repository.get_active()
+    def make_daily(self, id: int):
+        current_day = self.day_service.get_active()
+        task = self.get_by_id(id)
 
-        if current_day is None:
-            raise errors.NotFoundException('No active day set. Cannot update task')
+        if task.day_id != current_day.id:
+            raise errors.InternalException(f'Task with ID {id} not found in current active day')
+        if task.status == 'completed':
+            raise errors.InvalidTaskStateException(
+                f'Task with ID {id} is completed. To make it a daily task, make it active first')
 
-        day_tasks = task_repository.get_all_by_day_id(current_day.id)
-
-        task_id = id
-        is_task_found_in_current_day = False
-        target_task_object = None
-        for task in day_tasks:
-            if task.id == task_id:
-                is_task_found_in_current_day = True
-                target_task_object = task
-                break
-        if not is_task_found_in_current_day:
-            raise errors.NotFoundException(f'Task with ID {task_id} not found in current active day')
-        if target_task_object.status == 'completed':
-            raise errors.InvalidTaskStateException(f'Task with ID {task_id} is completed. To make it a daily task, make it active first')
-        task_repository.make_daily(task_id)
-        updated_task = task_repository.get_by_id(task_id)
+        self.task_repository.make_daily(id)
+        updated_task = self.task_repository.get_by_id(id)
         return updated_task
 
+    def make_one_time(self, id: int):
+        current_day = self.day_service.get_active()
+        task = self.get_by_id(id)
 
-    def make_task_one_time(self, id: int):
-        current_day = self.day_repository.get_active()
-
-        if current_day is None:
-            raise errors.NotFoundException('No active day set. Cannot update task')
-
-        day_tasks = task_repository.get_all_by_day_id(current_day.id)
-
-        task_id = id
-        is_task_found_in_current_day = False
-        for task in day_tasks:
-            if task.id == task_id:
-                is_task_found_in_current_day = True
-                break
-        if not is_task_found_in_current_day:
-            raise errors.NotFoundException(f'Task with ID {task_id} not found in current active day')
-        task_repository.make_one_time(task_id)
-        updated_task = task_repository.get_by_id(task_id)
+        if task.day_id != current_day.id:
+            raise errors.InternalException(f'Task with ID {id} not found in active day')
+        self.task_repository.make_one_time(id)
+        updated_task = self.task_repository.get_by_id(id)
         return updated_task

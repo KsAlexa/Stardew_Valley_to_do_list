@@ -1,5 +1,4 @@
 import sqlite3
-
 from .. import entities
 
 
@@ -87,9 +86,6 @@ class DayRepository:
                 active=bool(day_data['active'])
             )
 
-    # надо ли добавить try-except sqlite3.Error
-    # надо ли возвращать что то? например True/False
-    # надо ли cursor.rowcount == 0
     def set_active(self, day_id: int, active: bool):
         with sqlite3.connect(self.connection_string) as conn:
             cursor = conn.cursor()
