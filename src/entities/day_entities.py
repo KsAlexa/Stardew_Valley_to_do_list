@@ -5,3 +5,12 @@ class Day:
         self.season = season
         self.number = number
         self.active = active
+
+    def __eq__(self, other):
+        if not isinstance(other, Day):
+            return NotImplemented
+        return (self.id == other.id and
+                self.year == other.year and
+                self.season == other.season and
+                self.number == other.number and
+                self.active == other.active)

@@ -10,6 +10,8 @@ router = APIRouter(
     responses={404: {'description': 'Entity not found'}}
 )
 
+# С помощью Depends(get_day_service) передается заранее созданный объект сервиса - экземпляр DayService из app.state
+# При app.dependency_overrides Depends(get_day_service) вместо вызова функции get_day_service() вызовет get_mock_day_service()
 
 def _get_current_day_details(day_service: DayService, task_service: TaskService) -> DayResponse:
     current_day = day_service.get_active()
