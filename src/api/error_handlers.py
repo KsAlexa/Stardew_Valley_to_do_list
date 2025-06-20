@@ -12,6 +12,12 @@ async def internal_exception_handler(_, exc):
     return JSONResponse(content=data, status_code=500)
 
 
+@app.exception_handler(MultipleActiveDaysException)
+async def multiple_active_days_exception_handler(_, exc):
+    print(str(exc))
+    data = {'error': 'Internal Error'}
+    return JSONResponse(content=data, status_code=500)
+
 @app.exception_handler(TaskNotFoundException)
 async def task_not_found_exception_handler(_, exc):
     data = {'error': 'Task not found'}

@@ -16,7 +16,7 @@ class DayService:
     def set_current_day(self, year: int, season: str, number: int):
         previous_active_day = self.get_active()
 
-        self.day_repository.set_active(previous_active_day.id, False)
+        self.day_repository.set_activity(previous_active_day.id, False)
 
         new_active_day = self.day_repository.get_by_attributes(year, season, number)
 
@@ -29,7 +29,7 @@ class DayService:
         if new_active_day.id == previous_active_day.id:
             return
 
-        self.day_repository.set_active(new_active_day.id, True)
+        self.day_repository.set_activity(new_active_day.id, True)
         self._move_tasks_to_current_day(previous_active_day.id, new_active_day.id)
 
     def set_next_day(self):
@@ -50,7 +50,7 @@ class DayService:
             else:
                 next_day_season = seasons_order[next_day_season_index + 1]
 
-        self.day_repository.set_active(previous_active_day.id, False)
+        self.day_repository.set_activity(previous_active_day.id, False)
         next_active_day = self.day_repository.get_by_attributes(next_day_year, next_day_season, next_day_number)
 
         if next_active_day is None:
@@ -64,7 +64,7 @@ class DayService:
             self._move_tasks_to_current_day(previous_active_day.id, next_active_day.id)
             return
 
-        self.day_repository.set_active(next_active_day.id, True)
+        self.day_repository.set_activity(next_active_day.id, True)
         self._move_tasks_to_current_day(previous_active_day.id, next_active_day.id)
 
     def _move_tasks_to_current_day(self, previous_active_day_id, next_active_day_id):

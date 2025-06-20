@@ -7,10 +7,9 @@ def create_database_and_tables(db_path: str):
         create_tasks_table_sql = """
                                  create table if not exists main.tasks
                                  (
-                                     id     INTEGER
-                                         primary key autoincrement,
-                                     name   TEXT not null,
-                                     day_id integer,
+                                     id     INTEGER PRIMARY KEY AUTOINCREMENT,
+                                     name   TEXT NOT NULL,
+                                     day_id INTEGER NOT NULL,
                                      type   TEXT NOT NULL CHECK (type IN ('daily', 'one-time')),
                                      status TEXT NOT NULL CHECK (type IN ('active', 'completed')),
                                      FOREIGN KEY (day_id) REFERENCES days (id)
@@ -21,12 +20,12 @@ def create_database_and_tables(db_path: str):
         create_days_table_sql = """
                                 create table if not exists main.days
                                 (
-                                    id     INTEGER
-                                        primary key autoincrement,
-                                    year   integer,
+                                    id     INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    year   INTEGER NOT NULL CHECK (year > 0),
                                     season TEXT NOT NULL CHECK (season IN ('spring', 'summer', 'autumn', 'winter')),
-                                    number integer,
-                                    active BOOLEAN
+                                    number INTEGER NOT NULL CHECK (number BETWEEN 1 AND 28),
+                                    active BOOLEAN NOT NULL,
+                                    UNIQUE (year, season, number)
                                 ); \
                                 """
         cursor.execute(create_days_table_sql)

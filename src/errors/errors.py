@@ -11,3 +11,7 @@ class TaskNotFoundException(Exception):
 class InvalidTaskStateException(Exception):
     def __init__(self, message: str):
         self.message = message
+
+class MultipleActiveDaysException(Exception):
+    def __init__(self, message: str):
+        self.message = message

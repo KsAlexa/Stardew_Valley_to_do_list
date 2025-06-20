@@ -1,5 +1,6 @@
 import sqlite3
 from .. import entities
+from ..errors import MultipleActiveDaysException
 
 
 class DayRepository:
@@ -12,7 +13,8 @@ class DayRepository:
             cursor = conn.cursor()
             insert_sql = """
                          INSERT INTO days (year, season, number, active)
-                         VALUES (?, ?, ?, ?);
+                         VALUES (?, ?, ?, ?)
+                         ON CONFLICT(year, season, number) DO NOTHING;
                          """
             data = (day.year, day.season, day.number, 1 if day.active else 0)
             cursor.execute(insert_sql, data)
@@ -29,15 +31,17 @@ class DayRepository:
                                     WHERE active = 1; \
                                     """
             cursor.execute(select_active_day_sql)
-            day_data = cursor.fetchone()
-            if day_data is None:
+            day_data = cursor.fetchall()
+            if not day_data:
                 return None
+            if len(day_data) > 1:
+                raise MultipleActiveDaysException(message='Multiple active days')
             return entities.Day(
-                day_id=day_data['id'],
-                year=day_data['year'],
-                season=day_data['season'],
-                number=day_data['number'],
-                active=bool(day_data['active'])
+                day_id=day_data[0]['id'],
+                year=day_data[0]['year'],
+                season=day_data[0]['season'],
+                number=day_data[0]['number'],
+                active=bool(day_data[0]['active'])
             )
 
     def get_by_id(self, day_id: int) -> entities.Day | None:
@@ -86,7 +90,7 @@ class DayRepository:
                 active=bool(day_data['active'])
             )
 
-    def set_active(self, day_id: int, active: bool):
+    def set_activity(self, day_id: int, active: bool):
         with sqlite3.connect(self.connection_string) as conn:
             cursor = conn.cursor()
             update_day_active_sql = """
