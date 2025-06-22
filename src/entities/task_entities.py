@@ -5,3 +5,13 @@ class Task:
         self.type = type
         self.status = status
         self.id = task_id
+
+    def __eq__(self, other):
+        if not isinstance(other, Task):
+            return NotImplemented
+        return (
+            self.name == other.name and
+            self.day_id == other.day_id and
+            self.type == other.type and
+            self.status == other.status
+        )

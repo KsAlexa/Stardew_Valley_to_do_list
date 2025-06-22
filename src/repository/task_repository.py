@@ -11,7 +11,8 @@ class TaskRepository:
             cursor = conn.cursor()
             insert_task_sql = """
                               INSERT INTO tasks (name, day_id, type, status)
-                              VALUES (?, ?, ?, ?); \
+                              VALUES (?, ?, ?, ?)
+                              ON CONFLICT(name) DO NOTHING;
                               """
             data = (task.name, task.day_id, task.type, task.status)
             cursor.execute(insert_task_sql, data)

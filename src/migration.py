@@ -9,10 +9,11 @@ def create_database_and_tables(db_path: str):
                                  (
                                      id     INTEGER PRIMARY KEY AUTOINCREMENT,
                                      name   TEXT NOT NULL,
-                                     day_id INTEGER NOT NULL,
+                                     day_id INTEGER NOT NULL CHECK (day_id > 0),
                                      type   TEXT NOT NULL CHECK (type IN ('daily', 'one-time')),
-                                     status TEXT NOT NULL CHECK (type IN ('active', 'completed')),
-                                     FOREIGN KEY (day_id) REFERENCES days (id)
+                                     status TEXT NOT NULL CHECK (status IN ('active', 'completed')),
+                                     FOREIGN KEY (day_id) REFERENCES days (id),
+                                     UNIQUE (name)
                                  ); \
                                  """
         cursor.execute(create_tasks_table_sql)
