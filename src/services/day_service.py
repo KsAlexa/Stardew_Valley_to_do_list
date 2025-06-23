@@ -1,4 +1,4 @@
-from src import repository, entities, errors
+from src import repository, entities
 from src.errors import InternalException
 
 

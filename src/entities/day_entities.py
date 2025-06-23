@@ -9,7 +9,8 @@ class Day:
     def __eq__(self, other):
         if not isinstance(other, Day):
             return NotImplemented
-        return (self.year == other.year and
+        return (self.id == other.id and
+                self.year == other.year and
                 self.season == other.season and
                 self.number == other.number and
                 self.active == other.active

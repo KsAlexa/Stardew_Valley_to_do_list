@@ -7,7 +7,7 @@ from src.repository.day_repository import DayRepository
 from src.entities.day_entities import Day
 from src.migration import create_database_and_tables
 
-
+# TODO: создать def compare_days_without_id  везде где сравниваю объекты заменить
 @pytest.fixture
 def get_test_db_path(tmp_path: Path) -> str:
     test_db_path = tmp_path / "test_day_db.sqlite"
@@ -62,6 +62,11 @@ def test_migration_creates_initial_day(repo_with_initial_day: DayRepository):
     assert actual_initial_day is not None, 'Initial day was not created'
     assert actual_initial_day == expected_initial_day, 'Initial day is incorrect'
 
+def _compare_days(day1: Day, day2: Day):
+    assert day1.year == day2.year, 'Years do not match'
+    assert day1.season == day2.season, 'Seasons do not match'
+    assert day1.number == day2.number, 'Numbers do not match'
+    assert day1.active == day2.active, 'Actives do not match'
 
 def test_get_active_finds_initial_day(repo_with_initial_day: DayRepository):
     initial_active_day = repo_with_initial_day.get_active()

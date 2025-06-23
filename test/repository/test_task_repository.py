@@ -6,7 +6,7 @@ from src.repository.task_repository import TaskRepository
 from src.entities.task_entities import Task
 from src.migration import create_database_and_tables
 
-
+# TODO: создать def compare_tasks_without_id  везде где сравниваю объекты заменить
 @pytest.fixture
 def get_test_db_path(tmp_path: Path) -> str:
     test_db_path = tmp_path / "test_task_db.sqlite"
