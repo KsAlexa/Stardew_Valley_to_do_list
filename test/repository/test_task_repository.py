@@ -6,7 +6,14 @@ from src.repository.task_repository import TaskRepository
 from src.entities.task_entities import Task
 from src.migration import create_database_and_tables
 
-# TODO: создать def compare_tasks_without_id  везде где сравниваю объекты заменить
+
+def _compare_task_objects_without_id(task1: Task, task2: Task):
+    assert task1.name == task2.name, 'Names do not match'
+    assert task1.day_id == task2.day_id, 'Day_ids do not match'
+    assert task1.type == task2.type, 'Types do not match'
+    assert task1.status == task2.status, 'Status do not match'
+
+
 @pytest.fixture
 def get_test_db_path(tmp_path: Path) -> str:
     test_db_path = tmp_path / "test_task_db.sqlite"
@@ -36,6 +43,7 @@ def repo_with_two_active_daily_tasks(test_repo: TaskRepository) -> TaskRepositor
         test_repo.insert(task)
     return test_repo
 
+
 @pytest.fixture
 def repo_with_two_completed_one_time_tasks(test_repo: TaskRepository) -> TaskRepository:
     tasks = [
@@ -45,6 +53,7 @@ def repo_with_two_completed_one_time_tasks(test_repo: TaskRepository) -> TaskRep
     for task in tasks:
         test_repo.insert(task)
     return test_repo
+
 
 @pytest.fixture
 def repo_with_multiple_tasks(test_repo: TaskRepository) -> tuple[TaskRepository, list[Task]]:
@@ -66,7 +75,7 @@ def test_insert_and_get_by_id(test_repo: TaskRepository):
     test_repo.insert(task_to_insert)
     task_from_bd = test_repo.get_by_id(1)
     assert task_from_bd is not None, 'Task was not created'
-    assert task_from_bd == task_to_insert, 'Task from DB is incorrect'
+    _compare_task_objects_without_id(task_from_bd, task_to_insert)
 
 
 def test_get_by_id_of_non_existent_task(repo_with_two_active_daily_tasks: TaskRepository):
@@ -90,14 +99,12 @@ def test_insert_existent_task_does_nothing(repo_with_one_task: TaskRepository):
 
     with sqlite3.connect(repo_with_one_task.connection_string) as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM days")
+        cursor.execute("SELECT COUNT(*) FROM tasks")
         count_after_conflict = cursor.fetchone()[0]
     assert count_after_conflict == count_before_conflict, 'The number of lines has changed'
     task_in_bd_after_conflict = repo_with_one_task.get_by_id(1)
     assert task_in_bd_after_conflict is not None, 'Task after conflict was not found'
-    assert task_in_bd_after_conflict.day_id == task_in_bd.day_id, 'Task after conflict changed his day_id'
-    assert task_in_bd_after_conflict.type == task_in_bd.type, 'Task after conflict changed his type'
-    assert task_in_bd_after_conflict.status == task_in_bd.status, 'Task after conflict changed his status'
+    _compare_task_objects_without_id(task_in_bd_after_conflict, task_in_bd)
 
 
 def test_get_all_by_day_id(repo_with_multiple_tasks: tuple[TaskRepository, list[Task]]):
@@ -110,7 +117,8 @@ def test_get_all_by_day_id(repo_with_multiple_tasks: tuple[TaskRepository, list[
     sorted_expected_task_list = sorted(expected_tasks_list, key=lambda task: task.name)
     sorted_list_of_found_tasks = sorted(list_of_found_tasks, key=lambda task: task.name)
     assert len(list_of_found_tasks) == len(expected_tasks_list), 'Number of found tasks is incorrect'
-    assert sorted_expected_task_list == sorted_list_of_found_tasks, 'Objects of found tasks are incorrect'
+    for task1, task2 in zip(sorted_expected_task_list, sorted_list_of_found_tasks):
+        _compare_task_objects_without_id(task1, task2)
 
 
 def test_get_all_by_day_id_of_non_existent_day(repo_with_one_task: TaskRepository):
@@ -132,7 +140,7 @@ def test_update_field(repo_with_one_task: TaskRepository):
     )
     assert changed_task is not None, 'Can\'t find the changed task'
     assert changed_task.id == original_task.id, 'Task changed its id'
-    assert changed_task == expected_changed_task, 'Changed name is incorrect or other fields were changed'
+    _compare_task_objects_without_id(changed_task, expected_changed_task)
 
 
 def test_update_field_of_non_existent_task(repo_with_one_task: TaskRepository):
@@ -144,7 +152,7 @@ def test_update_field_of_non_existent_task(repo_with_one_task: TaskRepository):
         pytest.fail('Updating field of non existent task got an exception but it shouldn\'t happen')
     task_in_bd_after_function_call = repo_with_one_task.get_by_id(1)
     assert task_in_bd_after_function_call is not None, 'Task was deleted'
-    assert task_in_bd_after_function_call == task_in_bd, 'Task in BD was changed'
+    _compare_task_objects_without_id(task_in_bd_after_function_call, task_in_bd)
 
 
 def test_make_completed(repo_with_two_active_daily_tasks: TaskRepository):
@@ -162,9 +170,9 @@ def test_make_completed(repo_with_two_active_daily_tasks: TaskRepository):
     )
     assert task1_after_completed is not None, 'Completed task was deleted'
     assert task2_after_function_call is not None, 'The neighboring was deleted'
-    assert task2_after_function_call == task2, 'The neighboring task has changed'
+    _compare_task_objects_without_id(task2_after_function_call, task2)
     assert task1_after_completed.id == task1.id, 'Task changed its id'
-    assert task1_after_completed == expected_task_after_completed, 'Task isn\'t completed or other fields were changed'
+    _compare_task_objects_without_id(task1_after_completed, expected_task_after_completed)
 
 
 def test_make_one_time(repo_with_two_active_daily_tasks: TaskRepository):
@@ -182,9 +190,9 @@ def test_make_one_time(repo_with_two_active_daily_tasks: TaskRepository):
     )
     assert task1_after_function_call is not None, 'The neighboring was deleted'
     assert task2_after_changing is not None, 'Changed task was deleted'
-    assert task1_after_function_call == task1, 'The neighboring task has changed'
+    _compare_task_objects_without_id(task1_after_function_call, task1)
     assert task2_after_changing.id == task2.id, 'Task changed its id'
-    assert task2_after_changing == expected_task_after_changing, 'Task isn\'t one-time or other fields were changed'
+    _compare_task_objects_without_id(task2_after_changing, expected_task_after_changing)
 
 
 def test_make_daily(repo_with_two_completed_one_time_tasks: TaskRepository):
@@ -202,9 +210,9 @@ def test_make_daily(repo_with_two_completed_one_time_tasks: TaskRepository):
     )
     assert task1_after_changed is not None, 'Changed task was deleted'
     assert task2_after_function_call is not None, 'The neighboring was deleted'
-    assert task2_after_function_call == task2, 'The neighboring task has changed'
+    _compare_task_objects_without_id(task2_after_function_call, task2)
     assert task1_after_changed.id == task1.id, 'Task changed its id'
-    assert task1_after_changed == expected_task_after_changed, 'Task isn\'t daily or other fields were changed'
+    _compare_task_objects_without_id(task1_after_changed, expected_task_after_changed)
 
 
 def test_make_active(repo_with_two_completed_one_time_tasks: TaskRepository):
@@ -223,6 +231,6 @@ def test_make_active(repo_with_two_completed_one_time_tasks: TaskRepository):
     )
     assert task1_after_function_call is not None, 'The neighboring was deleted'
     assert task2_after_activating is not None, 'Activated task was deleted'
-    assert task1_after_function_call == task1, 'The neighboring task has changed'
+    _compare_task_objects_without_id(task1_after_function_call, task1)
     assert task2_after_activating.id == task2.id, 'Task changed its id'
-    assert task2_after_activating == expected_task_after_activating, 'Task isn\'t active or other fields were changed'
+    _compare_task_objects_without_id(task2_after_activating, expected_task_after_activating)

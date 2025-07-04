@@ -73,6 +73,6 @@ class DayService:
             if task.type == 'daily':
                 task.day_id = next_active_day_id
                 self.task_repository.update_field(task.id, 'day_id', task.day_id)
-            if task.type == 'one-time':
+            if task.type == 'one-time' and task.status == 'active':
                 task.status = 'completed'
                 self.task_repository.update_field(task.id, 'status', task.status)

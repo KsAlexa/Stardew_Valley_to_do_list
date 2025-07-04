@@ -7,7 +7,12 @@ from src.repository.day_repository import DayRepository
 from src.entities.day_entities import Day
 from src.migration import create_database_and_tables
 
-# TODO: создать def compare_days_without_id  везде где сравниваю объекты заменить
+def _compare_day_objects_without_id(day1: Day, day2: Day):
+    assert day1.year == day2.year, 'Years do not match'
+    assert day1.season == day2.season, 'Seasons do not match'
+    assert day1.number == day2.number, 'Numbers do not match'
+    assert day1.active == day2.active, 'Activity do not match'
+
 @pytest.fixture
 def get_test_db_path(tmp_path: Path) -> str:
     test_db_path = tmp_path / "test_day_db.sqlite"
@@ -60,13 +65,9 @@ def test_migration_creates_initial_day(repo_with_initial_day: DayRepository):
     )
     actual_initial_day = repo_with_initial_day.get_by_id(1)
     assert actual_initial_day is not None, 'Initial day was not created'
-    assert actual_initial_day == expected_initial_day, 'Initial day is incorrect'
+    # assert actual_initial_day == expected_initial_day, 'Initial day is incorrect'
+    _compare_day_objects_without_id(actual_initial_day, expected_initial_day)
 
-def _compare_days(day1: Day, day2: Day):
-    assert day1.year == day2.year, 'Years do not match'
-    assert day1.season == day2.season, 'Seasons do not match'
-    assert day1.number == day2.number, 'Numbers do not match'
-    assert day1.active == day2.active, 'Actives do not match'
 
 def test_get_active_finds_initial_day(repo_with_initial_day: DayRepository):
     initial_active_day = repo_with_initial_day.get_active()
@@ -91,7 +92,7 @@ def test_insert_and_get_by_id(repo_with_initial_day: DayRepository):
 
     day_from_db = repo_with_initial_day.get_by_id(day_to_insert.id)
     assert day_from_db is not None, 'Day was not created'
-    assert day_from_db == day_to_insert, 'Day from DB is incorrect'
+    _compare_day_objects_without_id(day_from_db, day_to_insert)
 
 
 def test_get_by_id_of_non_existent_day(repo_with_initial_day: DayRepository):
