@@ -50,7 +50,7 @@ class DayService:
             else:
                 next_day_season = seasons_order[next_day_season_index + 1]
 
-        self.day_repository.set_activity(previous_active_day.id, False)
+        self.day_repository.set_activity(previous_active_day.id, False) # 500 ошибка, будет база с неактивными днями, если введенный день существует
         next_active_day = self.day_repository.get_by_attributes(next_day_year, next_day_season, next_day_number)
 
         if next_active_day is None:

@@ -3,10 +3,10 @@ from contextlib import asynccontextmanager
 
 from starlette.datastructures import State
 
-from . import migration, config
-from .api import *
-from .repository import DayRepository, TaskRepository
-from .services import DayService, TaskService
+from src import migration, config
+from src.api import *
+from src.repository import DayRepository, TaskRepository
+from src.services import DayService, TaskService
 
 # Определение "состояния" приложения ('чертеж')
 # Объект для хранения общих ресурсов, доступных во всем приложении

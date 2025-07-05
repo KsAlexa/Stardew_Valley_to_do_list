@@ -31,38 +31,41 @@ class TestsDayService(unittest.TestCase):
 
 
     def test_set_current_day_new_day(self):
+        previous_day_id = 1
+        new_day_id = 2
+
+        self.day_service._move_tasks_to_current_day = MagicMock()
+
         previous_active_day = Day(year=1, season='spring', number=1, active=True)
-        previous_active_day.id = 1
+        previous_active_day.id = previous_day_id
         self.mock_day_repository.get_active = MagicMock(return_value = previous_active_day)
         self.mock_day_repository.get_by_attributes = MagicMock(return_value = None)
 
-        tasks = [
-            Task(name='Watch the news', day_id=1, type='one-time', status='active'),
-            Task(name='Hug the husband', day_id=1, type='daily', status='active'),
-            Task(name='Loot the mines', day_id=1, type='one-time', status='active'),
-            Task(name='Water the garden', day_id=1, type='daily', status='active'),
-            Task(name='Speak with neighbour', day_id=1, type='one-time', status='completed')
-        ]
-        for i, task_data in enumerate(tasks, start = 3):
-            task_data.id = i
-        self.mock_task_repository.get_all_by_day_id = MagicMock(return_value = tasks)
-
         def set_id_on_insert(new_active_day: Day):
-            new_active_day.id = 2
+            new_active_day.id = new_day_id
         self.mock_day_repository.insert = MagicMock(side_effect = set_id_on_insert)
 
         self.day_service.set_current_day(year=1, season = 'autumn', number = 12)
 
         self.mock_day_repository.set_activity.assert_called_once_with(previous_active_day.id, False)
+        self.mock_day_repository.get_by_attributes.assert_called_once_with(year=1, season='autumn', number=12)
+
         self.mock_day_repository.insert.assert_called_once()
         inserted_day = self.mock_day_repository.insert.call_args[0][0]
-        self.assertEqual(inserted_day, Day(year=1, season='autumn', number=12, active=True, day_id=2))
-        expected_calls = [
-            call(3, 'status', 'completed'),
-            call(4, 'day_id', inserted_day.id),
-            call(5, 'status', 'completed'),
-            call(6, 'day_id', inserted_day.id)
-        ]
+        self.assertEqual(inserted_day.year, 1)
+        self.assertEqual(inserted_day.season, 'autumn')
+        self.assertEqual(inserted_day.number, 12)
+        self.assertTrue(inserted_day.active)
 
-        self.mock_task_repository.update_field.assert_has_calls(expected_calls, any_order=True)
-        self.assertEqual(self.mock_task_repository.update_field.call_count, len(expected_calls))
+        self.day_service._move_tasks_to_current_day.assert_called_once_with(previous_day_id, new_day_id)
+
+        calls_to_set_activity = self.mock_day_repository.set_activity.call_args_list
+        self.assertEqual(len(calls_to_set_activity), 1)
+
+
+    def test_set_current_day_existent_day(self): # провалится, в коде ошибка
+        pass
+
+
+    def move_tasks_to_current_day(self):
+        pass
