@@ -5,6 +5,13 @@ from src.services.day_service import DayService
 from src.entities.day_entities import Day
 from src.entities.task_entities import Task
 
+# TODO: переписать на pytest:
+# @pytest.fixture
+# def day_service():
+#     mock_day_repository = MagicMock()
+#     mock_task_repository = MagicMock()
+#     day_service = DayService(mock_day_repository, mock_task_repository)
+#     return day_service
 
 class TestsDayService(unittest.TestCase):
     def setUp(self):
