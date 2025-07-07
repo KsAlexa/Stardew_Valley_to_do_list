@@ -1,6 +1,7 @@
 from src import repository, entities
 from src.errors import InternalException
 
+# TODO: Add validation on service layer
 
 class DayService:
     def __init__(self, day_repository: repository.DayRepository, task_repository: repository.TaskRepository):
@@ -16,17 +17,17 @@ class DayService:
     def set_current_day(self, year: int, season: str, number: int):
         previous_active_day = self.get_active()
 
-        self.day_repository.set_activity(previous_active_day.id, False)
+        new_active_day = self.day_repository.get_by_attributes(year = year, season = season, number = number)
 
-        new_active_day = self.day_repository.get_by_attributes(year, season, number)
+        if new_active_day and new_active_day.id == previous_active_day.id:
+            return
+
+        self.day_repository.set_activity(previous_active_day.id, False)
 
         if new_active_day is None:
             new_active_day = entities.Day(year, season, number, active=True)
             self.day_repository.insert(new_active_day)
             self._move_tasks_to_current_day(previous_active_day.id, new_active_day.id)
-            return
-
-        if new_active_day.id == previous_active_day.id:
             return
 
         self.day_repository.set_activity(new_active_day.id, True)
@@ -50,8 +51,8 @@ class DayService:
             else:
                 next_day_season = seasons_order[next_day_season_index + 1]
 
-        self.day_repository.set_activity(previous_active_day.id, False) # 500 ошибка, будет база с неактивными днями, если введенный день существует
-        next_active_day = self.day_repository.get_by_attributes(next_day_year, next_day_season, next_day_number)
+        self.day_repository.set_activity(previous_active_day.id, False)
+        next_active_day = self.day_repository.get_by_attributes(year = next_day_year, season = next_day_season, number = next_day_number)
 
         if next_active_day is None:
             next_active_day = entities.Day(

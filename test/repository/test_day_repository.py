@@ -65,7 +65,6 @@ def test_migration_creates_initial_day(repo_with_initial_day: DayRepository):
     )
     actual_initial_day = repo_with_initial_day.get_by_id(1)
     assert actual_initial_day is not None, 'Initial day was not created'
-    # assert actual_initial_day == expected_initial_day, 'Initial day is incorrect'
     _compare_day_objects_without_id(actual_initial_day, expected_initial_day)
 
 
