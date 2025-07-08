@@ -1,7 +1,6 @@
 from src import repository, entities
-from src.errors import InternalException
+from src.errors import InternalException, InvalidDayError
 
-# TODO: Add validation on service layer
 
 class DayService:
     def __init__(self, day_repository: repository.DayRepository, task_repository: repository.TaskRepository):
@@ -15,6 +14,14 @@ class DayService:
         return active_day
 
     def set_current_day(self, year: int, season: str, number: int):
+        seasons = ['spring', 'summer', 'autumn', 'winter']
+        if not isinstance(year, int) or year <= 0:
+            raise InvalidDayError(f'Year must be a positive integer, but got {year}')
+        if season not in seasons:
+            raise InvalidDayError(f'Season must be one of {seasons}, but got "{season}"')
+        if not isinstance(number, int) or not (1 <= number <= 28):
+            raise InvalidDayError(f'Day number must be an integer between 1 and 28, but got {number}')
+
         previous_active_day = self.get_active()
 
         new_active_day = self.day_repository.get_by_attributes(year = year, season = season, number = number)

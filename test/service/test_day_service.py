@@ -118,6 +118,28 @@ def test_set_current_day_active_day(day_service, mock_day_repo):
     mock_day_repo.insert.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    "year, season, number, expected_error_message",
+    [
+        ('2', 'spring', 5, "Year must be a positive integer"),
+        (0, 'spring', 1, "Year must be a positive integer"),
+        (-1, 'spring', 1, "Year must be a positive integer"),
+        (2, 2, 5, "Season must be one of"),
+        (1, 'string', 28, "Season must be one of"),
+        (2, 'spring', '5', "Day number must be an integer between 1 and 28"),
+        (1, 'spring', 0, "Day number must be an integer between 1 and 28"),
+        (1, 'spring', 29, "Day number must be an integer between 1 and 28")
+    ]
+)
+
+def test_set_current_day_invalid_input(day_service, mock_day_repo, year, season, number, expected_error_message):
+    mock_day_repo.get_active.return_value = Day(year = 1, season =  'spring', number = 1,  active = True)
+    with pytest.raises(errors.InvalidDayError) as e_info:
+        day_service.set_current_day(year, season, number)
+
+    assert expected_error_message in str(e_info.value)
+
+
 def test_move_tasks_to_current_day(day_service, mock_day_repo, mock_task_repo):
     previous_day_id = 1
     new_day_id = 2
@@ -147,4 +169,28 @@ def test_move_tasks_to_current_day(day_service, mock_day_repo, mock_task_repo):
     mock_task_repo.update_field.assert_has_calls(update_field_expected_calls, any_order=True)
     assert mock_task_repo.update_field.call_count == len(update_field_expected_calls)
 
-# TODO: Add tests on validation
+def test_set_next_day_new_day(day_service, mock_day_repo):
+    # 1.найти активный день get_active.assert_called_once()
+    # 2.просчитать год, сезон, день след дня(отловить) get_by_attributes.assert_called_once_with
+    # 3.деактивировать пред день set_activity.assert_called_once()
+    # 4.найти в бд день с атрибутами след дня .return_value = None
+    # 5. создался день с атрибутами след дня, положился в базу .insert.side_effect
+    # 6.перенесли задачи _move_tasks_to_current_day.assert_called_once()
+    mock_day_repo.get_active.return_value = Day(year = 1, season =  'spring', number = 1,  active = True)
+    mock_day_repo.get_by_attributes.return_value = None
+
+
+def test_set_next_day_existent_day(day_service, mock_day_repo):
+    # 1.найти активный день get_active.assert_called_once()
+    # 2.просчитать год, сезон, день след дня(отловить) get_by_attributes.assert_called_once_with
+    # 3.деактивировать пред день
+    # 4.найти в бд день с атрибутами след дня .return_value = Day()
+    # 5.активировать день с атрибутами след дня set_activity.call_args_list
+    # 6.перенесли задачи _move_tasks_to_current_day.assert_called_once()
+    pass
+
+# @pytest.mark.parametrize()
+#  переход на след сезон (28 день месяца)
+# переход на след сезон (28 день зимы)
+def test_set_next_day_boundary_transitions():
+    pass
