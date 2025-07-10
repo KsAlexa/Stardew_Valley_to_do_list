@@ -58,8 +58,8 @@ class DayService:
             else:
                 next_day_season = seasons_order[next_day_season_index + 1]
 
-        self.day_repository.set_activity(previous_active_day.id, False)
         next_active_day = self.day_repository.get_by_attributes(year = next_day_year, season = next_day_season, number = next_day_number)
+        self.day_repository.set_activity(previous_active_day.id, False)
 
         if next_active_day is None:
             next_active_day = entities.Day(
