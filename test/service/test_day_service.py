@@ -39,9 +39,33 @@ def get_test_db_path(tmp_path: Path) -> str:
 
 
 @pytest.fixture
-def day_service_with_db(get_test_db_path: str) -> DayService:
-    day_repo = day_repository.DayRepository(get_test_db_path)
-    task_repo = task_repository.TaskRepository(get_test_db_path)
+def day_repo(get_test_db_path: str) -> day_repository.DayRepository:
+    return day_repository.DayRepository(get_test_db_path)
+
+
+@pytest.fixture
+def task_repo(get_test_db_path: str) -> task_repository.TaskRepository:
+    return task_repository.TaskRepository(get_test_db_path)
+
+
+@pytest.fixture
+def day_service_with_initial_day_in_db(day_repo: day_repository.DayRepository,
+                                       task_repo: task_repository.TaskRepository) -> DayService:
+    return DayService(day_repo, task_repo)
+
+
+@pytest.fixture
+def day_service_with_multiple_days_in_db(day_repo: day_repository.DayRepository,
+                                       task_repo: task_repository.TaskRepository) -> DayService:
+    days = [
+        Day(year=1, season='spring', number=2, active=False, day_id=2),
+        Day(year=1, season='summer', number=15, active=False, day_id=3),
+        Day(year=1, season='summer', number=28, active=False, day_id=4),
+        Day(year=4, season='autumn', number=4, active=False, day_id=5),
+        Day(year=3, season='winter', number=27, active=False, day_id=6),
+    ]
+    for day in days:
+        day_repo.insert(day)
     return DayService(day_repo, task_repo)
 
 
@@ -62,6 +86,16 @@ def test_get_active_day_of_non_existent_day(day_service, mock_day_repo):
         day_service.get_active()
 
     assert 'No active day' in str(e_info.value)
+
+
+def test_get_active_day_fails_with_multiple_active_days(day_service, mock_day_repo):
+    from src.errors import MultipleActiveDaysException
+    mock_day_repo.get_active.side_effect = MultipleActiveDaysException('Multiple active days')
+
+    with pytest.raises(MultipleActiveDaysException) as e_info:
+        day_service.get_active()
+
+    assert 'Multiple active days' in str(e_info.value)
 
 
 def test_set_current_day_new_day(day_service, mock_day_repo):
@@ -307,11 +341,11 @@ def test_move_tasks_to_current_day(day_service, mock_day_repo, mock_task_repo):
     new_day_id = 2
 
     tasks_to_move = [
-        Task(name='Watch the news', day_id=previous_day_id, type='one-time', status='active', task_id=10),
-        Task(name='Hug the husband', day_id=previous_day_id, type='daily', status='active', task_id=11),
-        Task(name='Loot the mines', day_id=previous_day_id, type='one-time', status='active', task_id=12),
-        Task(name='Water the garden', day_id=previous_day_id, type='daily', status='active', task_id=13),
-        Task(name='Speak with neighbour', day_id=previous_day_id, type='one-time', status='completed', task_id=14)
+        Task(name='One-time active task 1', day_id=previous_day_id, type='one-time', status='active', task_id=10),
+        Task(name='Daily task 1', day_id=previous_day_id, type='daily', status='active', task_id=11),
+        Task(name='One-time active task 2', day_id=previous_day_id, type='one-time', status='active', task_id=12),
+        Task(name='Daily task 2', day_id=previous_day_id, type='daily', status='active', task_id=13),
+        Task(name='One-time completed task', day_id=previous_day_id, type='one-time', status='completed', task_id=14)
     ]
 
     mock_task_repo.get_all_by_day_id.return_value = tasks_to_move
@@ -358,9 +392,9 @@ def test_set_next_day_new_day_integrates_with_task_moving(day_service, mock_day_
                             number=previous_active_day.number + 1, active=True, day_id=new_day_id)
 
     tasks = [
-        Task(name='Test Task1', day_id=previous_active_day.id, type='daily', status='active', task_id=1),
-        Task(name='Test Task2', day_id=previous_active_day.id, type='one-time', status='active', task_id=2),
-        Task(name='Test Task3', day_id=previous_active_day.id, type='one-time', status='completed', task_id=3)
+        Task(name='Daily task', day_id=previous_active_day.id, type='daily', status='active', task_id=1),
+        Task(name='One-time active task', day_id=previous_active_day.id, type='one-time', status='active', task_id=2),
+        Task(name='One-time completed task', day_id=previous_active_day.id, type='one-time', status='completed', task_id=3)
     ]
     mock_task_repo.get_all_by_day_id.return_value = tasks
 
@@ -386,21 +420,6 @@ def test_set_next_day_new_day_integrates_with_task_moving(day_service, mock_day_
     mock_task_repo.update_field.assert_has_calls(update_field_expected_calls, any_order=True)
     assert mock_task_repo.update_field.call_count == len(update_field_expected_calls)
 
-# horizontal integration:
-# 1. test_set_next_day_new_day_integrates_with_task_moving()
-# 2. test_set_next_day_existent_day_integrates_with_task_moving()
-# 3. test_set_current_day_new_day_integrates_with_task_moving()
-# 4. test_set_current_day_existent_day_integrates_with_task_moving()
-# vertical integration:
-# 5. test_get_active_day_returns_correct_data_from_db()
-# 6. test_set_current_day_creates_new_day_in_db()
-# 7. test_set_next_day_creates_new_day_in_db()
-# 8. test_set_current_day_activates_existing_day_in_db()
-# 9. test_set_next_day_activates_existing_day_in_db()
-# 10. test_set_current_day_fails_on_invalid_input()
-# 11. test_set_current_day_updates_tasks_in_db()
-# 12. test_set_next_day_updates_tasks_in_db()
-# оставлю 1, 4, 5, (6 и 11 объединить), 8, 10
 
 def test_set_current_day_existent_day_integrates_with_task_moving(day_service, mock_day_repo, mock_task_repo):
     previous_active_day = Day(year=1, season='autumn', number=9, active=True, day_id=2)
@@ -415,9 +434,9 @@ def test_set_current_day_existent_day_integrates_with_task_moving(day_service, m
     ]
 
     tasks = [
-        Task(name='Test Task1', day_id=previous_active_day.id, type='daily', status='active', task_id=3),
-        Task(name='Test Task2', day_id=previous_active_day.id, type='one-time', status='active', task_id=2),
-        Task(name='Test Task3', day_id=previous_active_day.id, type='one-time', status='completed', task_id=6)
+        Task(name='Daily task', day_id=previous_active_day.id, type='daily', status='active', task_id=3),
+        Task(name='One-time active task', day_id=previous_active_day.id, type='one-time', status='active', task_id=2),
+        Task(name='One-time completed task', day_id=previous_active_day.id, type='one-time', status='completed', task_id=6)
     ]
     mock_task_repo.get_all_by_day_id.return_value = tasks
 
@@ -441,14 +460,56 @@ def test_set_current_day_existent_day_integrates_with_task_moving(day_service, m
     assert mock_task_repo.update_field.call_count == len(update_field_expected_calls)
 
 
-def test_get_active_day_returns_correct_data_from_db(day_service_with_db):
+def test_get_active_day_returns_correct_data_from_db(day_service_with_initial_day_in_db):
     expected_initial_active_day = Day(year=1, season='spring', number=1, active=True, day_id=1)
 
-    active_day = day_service_with_db.get_active()
+    active_day = day_service_with_initial_day_in_db.get_active()
     assert active_day is not None
     _compare_day_objects_without_id(active_day, expected_initial_active_day)
     assert active_day.id == expected_initial_active_day.id
 
-# def test_set_current_day_activates_existing_day_in_db(day_service_with_db):
-# def test_set_current_day_fails_on_invalid_input(day_service_with_db):
-# def test_set_current_day_creates_new_day_in_db_and_updates_tasks_in_db(day_service_with_db):
+def test_set_current_day_activates_existing_day_in_db(day_service_with_multiple_days_in_db):
+    day_year_from_bd, day_season_from_bd, day_number_from_bd = 1, 'summer', 15
+
+    day_service_with_multiple_days_in_db.set_current_day(year=day_year_from_bd, season=day_season_from_bd, number=day_number_from_bd)
+
+    new_active_day = day_service_with_multiple_days_in_db.get_active()
+    assert new_active_day.year == day_year_from_bd
+    assert new_active_day.season == day_season_from_bd
+    assert new_active_day.number == day_number_from_bd
+    assert new_active_day.active == True
+
+
+def test_set_next_day_creates_new_day_in_db_and_updates_tasks_in_db(day_service_with_initial_day_in_db, day_repo, task_repo):
+    initial_day = day_repo.get_active()
+    expected_next_day = Day(year=initial_day.year, season=initial_day.season,
+                            number=initial_day.number + 1, active=True,
+                            day_id=initial_day.id + 1)
+
+    tasks = [
+        Task(name='Daily task 1', day_id=initial_day.id, type='daily', status='active'),
+        Task(name='Daily task 2', day_id=initial_day.id, type='daily', status='active'),
+        Task(name='One-time active task', day_id=initial_day.id, type='one-time', status='active'),
+        Task(name='One-time completed task', day_id=initial_day.id, type='one-time', status='completed'),
+    ]
+
+    for task in tasks:
+        task_repo.insert(task)
+
+    one_time_tasks = [task for task in tasks if task.type == 'one-time']
+
+    day_service_with_initial_day_in_db.set_next_day()
+
+    assert day_repo.get_by_id(initial_day.id).active == False
+    new_active_day = day_repo.get_active()
+    assert new_active_day is not None
+    _compare_day_objects_without_id(new_active_day, expected_next_day)
+
+    new_day_tasks = task_repo.get_all_by_day_id(new_active_day.id)
+    daily_tasks = [task for task in new_day_tasks if task.type == 'daily']
+    assert len(new_day_tasks) == len(daily_tasks)
+    assert new_day_tasks == daily_tasks
+
+    for task in one_time_tasks:
+        updated_task = task_repo.get_by_id(task.id)
+        assert updated_task.status == 'completed'
