@@ -1,5 +1,6 @@
 import sqlite3
 from .. import entities
+from typing import List
 
 
 class TaskRepository:
@@ -19,7 +20,7 @@ class TaskRepository:
             conn.commit()
             task.id = cursor.lastrowid
 
-    def get_all_by_day_id(self, day_id: int) -> list:
+    def get_all_by_day_id(self, day_id: int) -> List[entities.Task]:
         with sqlite3.connect(self.connection_string) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
@@ -32,8 +33,6 @@ class TaskRepository:
             cursor.execute(select_tasks_for_day_sql, data)
             tasks_data = cursor.fetchall()
             tasks = []
-            if tasks_data is None:
-                return tasks
             for task_data in tasks_data:
                 tasks.append(entities.Task(
                     task_id=task_data['id'],
@@ -65,6 +64,28 @@ class TaskRepository:
                 status=task_data['status'],
                 day_id=task_data['day_id']
             )
+
+    def get_all_completed(self)-> List[entities.Task]:
+        with sqlite3.connect(self.connection_string) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            select_all_completed_tasks_sql = """
+                                       SELECT *
+                                       FROM tasks
+                                       WHERE status = 'completed'; \
+                                       """
+            cursor.execute(select_all_completed_tasks_sql)
+            tasks_data = cursor.fetchall()
+            tasks = []
+            for task_data in tasks_data:
+                tasks.append(entities.Task(
+                    task_id=task_data['id'],
+                    name=task_data['name'],
+                    day_id=task_data['day_id'],
+                    type=task_data['type'],
+                    status=task_data['status']
+                ))
+            return tasks
 
     def update_field(self, task_id: int, field_name: str, new_value):
         with sqlite3.connect(self.connection_string) as conn:

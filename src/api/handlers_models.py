@@ -60,10 +60,7 @@ class DayResponse(BaseModel):
 
     @classmethod
     def from_day(cls, day: entities.Day, tasks: List[entities.Task] | None) -> 'DayResponse':
-        if tasks:
-            task_responses = [TaskResponse.from_task(task) for task in tasks]
-        else:
-            task_responses = None
+        task_responses = [TaskResponse.from_task(task) for task in tasks]
         return cls(
             id=day.id,
             year=day.year,
@@ -71,4 +68,20 @@ class DayResponse(BaseModel):
             number=day.number,
             active=day.active,
             tasks=task_responses
+        )
+
+
+class CurrentStateResponse(BaseModel):
+    current_day: DayResponse
+    all_completed_tasks: List[TaskResponse]
+
+    @classmethod
+    def from_entities(cls, current_day: entities.Day, day_tasks: List[entities.Task],
+                      completed_tasks: List[entities.Task]) -> 'CurrentStateResponse':
+
+        current_day_response = DayResponse.from_day(current_day, day_tasks)
+        completed_tasks_response = [TaskResponse.from_task(task) for task in completed_tasks]
+        return cls(
+            current_day=current_day_response,
+            all_completed_tasks=completed_tasks_response
         )

@@ -1,5 +1,6 @@
 from src import repository, entities, errors
 from .day_service import DayService
+from typing import List
 
 
 class TaskService:
@@ -15,6 +16,9 @@ class TaskService:
         if task is None:
             raise errors.TaskNotFoundException(f'Task with id {id} not found')
         return task
+
+    def get_all_completed(self) -> List[entities.Task]:
+        return self.task_repository.get_all_completed()
 
     def create_task(self, name: str):
         current_day = self.day_service.get_active()
