@@ -45,6 +45,6 @@ def create_database_and_tables(db_path: str):
         if row[0] == 0:
             cursor.execute("""
                            INSERT INTO main.days (year, season, number, active)
-                           VALUES (1, 'spring', 1, true); \
+                           VALUES (1, 'spring', 1, 1); \
                            """)
         conn.commit()

@@ -16,7 +16,7 @@ class DayRepository:
                          VALUES (?, ?, ?, ?)
                          ON CONFLICT(year, season, number) DO NOTHING;
                          """
-            data = (day.year, day.season, day.number, 1 if day.active else 0)
+            data = (day.year, day.season, day.number, day.active)
             cursor.execute(insert_sql, data)
             conn.commit()
             day.id = cursor.lastrowid

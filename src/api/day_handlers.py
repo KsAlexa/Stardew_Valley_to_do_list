@@ -16,8 +16,9 @@ router = APIRouter(
 def _get_current_day_details(day_service: DayService, task_service: TaskService) -> CurrentStateResponse:
     current_day = day_service.get_active()
     day_tasks = task_service.get_all_by_day_id(current_day.id)
+    active_day_tasks = [task for task in day_tasks if task.status == 'active']
     completed_tasks = task_service.get_all_completed()
-    return CurrentStateResponse.from_entities(current_day, day_tasks, completed_tasks)
+    return CurrentStateResponse.from_entities(current_day, active_day_tasks, completed_tasks)
 
 
 @router.get("/current", response_model=CurrentStateResponse, status_code=200)
