@@ -1,6 +1,7 @@
 import sqlite3
 from .. import entities
 from typing import List
+from ..errors import DuplicateTaskNameException
 
 
 class TaskRepository:
@@ -12,13 +13,18 @@ class TaskRepository:
             cursor = conn.cursor()
             insert_task_sql = """
                               INSERT INTO tasks (name, day_id, type, status)
-                              VALUES (?, ?, ?, ?)
-                              ON CONFLICT(name) DO NOTHING;
+                              VALUES (?, ?, ?, ?);
                               """
             data = (task.name, task.day_id, task.type, task.status)
-            cursor.execute(insert_task_sql, data)
-            conn.commit()
-            task.id = cursor.lastrowid
+            try:
+                cursor.execute(insert_task_sql, data)
+                conn.commit()
+                task.id = cursor.lastrowid
+                return task
+            except sqlite3.IntegrityError:
+                raise DuplicateTaskNameException(
+                    f'Task with name "{task.name}" already exists'
+                )
 
     def get_all_by_day_id(self, day_id: int) -> List[entities.Task]:
         with sqlite3.connect(self.connection_string) as conn:
@@ -88,6 +94,10 @@ class TaskRepository:
             return tasks
 
     def update_field(self, task_id: int, field_name: str, new_value):
+        allowed_fields = ['name', 'status', 'type', 'day_id']
+        if field_name not in allowed_fields:
+            raise ValueError(f'Field "{field_name}" cannot be modified')
+
         with sqlite3.connect(self.connection_string) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
@@ -101,22 +111,17 @@ class TaskRepository:
             conn.commit()
 
     def make_completed(self, task_id: int):
-        target_task = self.get_by_id(task_id)
-        target_task.status = 'completed'
-        self.update_field(task_id, 'status', target_task.status)
+        self.update_field(task_id, 'status', 'completed')
 
     def make_active(self, task_id: int, task_day_id: int):
-        target_task = self.get_by_id(task_id)
-        target_task.status = 'active'
-        self.update_field(task_id, 'status', target_task.status)
+        self.update_field(task_id, 'status', 'active')
         self.update_field(task_id, 'day_id', task_day_id)
 
     def make_daily(self, task_id: int):
-        target_task = self.get_by_id(task_id)
-        target_task.type = 'daily'
-        self.update_field(task_id, 'type', target_task.type)
+        self.update_field(task_id, 'type', 'daily')
 
     def make_one_time(self, task_id: int):
-        target_task = self.get_by_id(task_id)
-        target_task.type = 'one-time'
-        self.update_field(task_id, 'type', target_task.type)
+        self.update_field(task_id, 'type', 'one-time')
+
+    def edit_name(self, task_id: int, new_name: str):
+        self.update_field(task_id, 'name', new_name)

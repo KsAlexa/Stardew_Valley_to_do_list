@@ -1,6 +1,6 @@
 import sqlite3
 from .. import entities
-from ..errors import MultipleActiveDaysException
+from ..errors import MultipleActiveDaysException, DuplicateDayException
 
 
 class DayRepository:
@@ -13,13 +13,19 @@ class DayRepository:
             cursor = conn.cursor()
             insert_sql = """
                          INSERT INTO days (year, season, number, active)
-                         VALUES (?, ?, ?, ?)
-                         ON CONFLICT(year, season, number) DO NOTHING;
+                         VALUES (?, ?, ?, ?);
                          """
             data = (day.year, day.season, day.number, day.active)
-            cursor.execute(insert_sql, data)
-            conn.commit()
-            day.id = cursor.lastrowid
+            try:
+                cursor.execute(insert_sql, data)
+                conn.commit()
+                day.id = cursor.lastrowid
+                return day
+            except sqlite3.IntegrityError:
+                raise DuplicateDayException(
+                    f'Day with "{day.year}", "{day.season}", "{day.number}" already exists'
+                )
+
 
     def get_active(self) -> entities.Day | None:
         with sqlite3.connect(self.connection_string) as conn:

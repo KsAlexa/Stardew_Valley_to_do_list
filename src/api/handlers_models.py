@@ -21,7 +21,7 @@ class TaskStatus(str, Enum):
     completed = 'completed'
 
 
-class AddTaskRequest(BaseModel):
+class TaskNameRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     name: str = Field(min_length=1, description='Task name must have at least 1 character')
 

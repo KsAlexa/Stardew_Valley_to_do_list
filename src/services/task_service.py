@@ -28,15 +28,17 @@ class TaskService:
             type='one-time',
             status='active'
         )
-        self.task_repository.insert(new_task)
-        return new_task
+        try:
+            created_task = self.task_repository.insert(new_task)
+            return created_task
+        except errors.DuplicateTaskNameException:
+            raise
 
     def make_completed(self, id: int):
         current_day = self.day_service.get_active()
         task = self.get_by_id(id)
 
-        if task.day_id != current_day.id:
-            raise errors.InternalException(f'Task with ID {id} not found in current active day')
+        self._check_task_in_current_day(task, current_day)
         if task.type != 'one-time':
             raise errors.InvalidTaskStateException(
                 f'Task with ID {id} cannot be completed. Only \'one-time\' tasks can be marked as completed')
@@ -44,7 +46,7 @@ class TaskService:
             raise errors.InvalidTaskStateException(f'Task with ID {id} is already completed.')
 
         self.task_repository.make_completed(id)
-        updated_task = self.get_by_id(id)
+        updated_task = self.get_by_id(id)  ## нужен ли повторный запрос к бд или лучше изменять объект в памяти? task.status = 'completed' return task
 
         return updated_task
 
@@ -63,8 +65,7 @@ class TaskService:
         current_day = self.day_service.get_active()
         task = self.get_by_id(id)
 
-        if task.day_id != current_day.id:
-            raise errors.InternalException(f'Task with ID {id} not found in current active day')
+        self._check_task_in_current_day(task, current_day)
         if task.status == 'completed':
             raise errors.InvalidTaskStateException(
                 f'Task with ID {id} is completed. To make it a daily task, make it active first')
@@ -77,8 +78,26 @@ class TaskService:
         current_day = self.day_service.get_active()
         task = self.get_by_id(id)
 
-        if task.day_id != current_day.id:
-            raise errors.InternalException(f'Task with ID {id} not found in active day')
+        self._check_task_in_current_day(task, current_day)
         self.task_repository.make_one_time(id)
         updated_task = self.task_repository.get_by_id(id)
         return updated_task
+
+    def edit_name(self, id: int, new_name: str):
+        current_day = self.day_service.get_active()
+        task = self.get_by_id(id)
+
+        self._check_task_in_current_day(task, current_day)
+        if task.status == 'completed':
+            raise errors.InvalidTaskStateException(
+                f'Task with ID {id} is completed. To edit it, make it active first')
+
+        self.task_repository.edit_name(id, new_name)
+        updated_task = self.task_repository.get_by_id(id)
+        return updated_task
+
+    def _check_task_in_current_day(self, task: entities.Task, day: entities.Day):
+        if task.day_id != day.id:
+            raise errors.TaskNotInActiveDayError(
+                f"Task with ID {task.id} not found in active day {day.id}"
+            )

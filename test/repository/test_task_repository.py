@@ -2,6 +2,7 @@ import pytest
 import sqlite3
 from pathlib import Path
 
+from src.errors import DuplicateTaskNameException
 from src.repository.task_repository import TaskRepository
 from src.entities.task_entities import Task
 from src.migration import create_database_and_tables
@@ -82,7 +83,7 @@ def test_get_by_id_of_non_existent_task(repo_with_two_active_daily_tasks: TaskRe
     assert repo_with_two_active_daily_tasks.get_by_id(3) is None, 'Should return None if no day with such id'
 
 
-def test_insert_existent_task_does_nothing(repo_with_one_task: TaskRepository):
+def test_insert_existent_task_raises_exception(repo_with_one_task: TaskRepository):
     task_in_bd = repo_with_one_task.get_by_id(1)
     assert task_in_bd is not None, 'Task was not created'
     with sqlite3.connect(repo_with_one_task.connection_string) as conn:
@@ -92,10 +93,10 @@ def test_insert_existent_task_does_nothing(repo_with_one_task: TaskRepository):
     assert count_before_conflict == 1, 'Task was not created'
     conflict_task = Task(name='Watch the news', day_id=2, type='one-time', status='completed')
 
-    try:
+    with pytest.raises(DuplicateTaskNameException) as exc_info:
         repo_with_one_task.insert(conflict_task)
-    except Exception as e:
-        pytest.fail(f'insert() of existent task got an Exception "{e}", but it shouldn\'t happen')
+
+    assert "already exists" in str(exc_info.value)
 
     with sqlite3.connect(repo_with_one_task.connection_string) as conn:
         cursor = conn.cursor()
