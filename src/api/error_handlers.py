@@ -28,3 +28,21 @@ async def task_not_found_exception_handler(_, exc):
 async def invalid_task_state_exception_handler(_, exc):
     data = {'error': exc.message}
     return JSONResponse(content=data, status_code=400)
+
+
+@app.exception_handler(InvalidDayError)
+async def invalid_day_error_handler(_, exc):
+    data = {'error': exc.message}
+    return JSONResponse(content=data, status_code=400)
+
+
+@app.exception_handler(DuplicateDayException)
+async def duplicate_day_exception_handler(_, exc):
+    data = {'error': 'Day already exists'}
+    return JSONResponse(content=data, status_code=409)
+
+
+@app.exception_handler(DuplicateTaskNameException)
+async def duplicate_task_name_exception_handler(_, exc):
+    data = {'error': 'Task already exists'}
+    return JSONResponse(content=data, status_code=409)

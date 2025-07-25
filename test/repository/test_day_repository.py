@@ -2,7 +2,7 @@ import pytest
 import sqlite3
 from pathlib import Path
 
-from src.errors import MultipleActiveDaysException
+from src.errors import MultipleActiveDaysException, DuplicateDayException
 from src.repository.day_repository import DayRepository
 from src.entities.day_entities import Day
 from src.migration import create_database_and_tables
@@ -113,10 +113,10 @@ def test_insert_existent_day_does_nothing(repo_with_initial_day: DayRepository):
         active=False
     )
 
-    try:
+    with pytest.raises(DuplicateDayException) as exception_message:
         repo_with_initial_day.insert(conflict_day)
-    except Exception as e:
-        pytest.fail(f'insert() of existent day got an Exception "{e}", but it shouldn\'t happen')
+
+    assert 'already exists' in str(exception_message.value), 'Exception message mismatch'
 
     with sqlite3.connect(repo_with_initial_day.connection_string) as conn:
         cursor = conn.cursor()

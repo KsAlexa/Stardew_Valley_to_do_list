@@ -235,3 +235,34 @@ def test_make_active(repo_with_two_completed_one_time_tasks: TaskRepository):
     _compare_task_objects_without_id(task1_after_function_call, task1)
     assert task2_after_activating.id == task2.id, 'Task changed its id'
     _compare_task_objects_without_id(task2_after_activating, expected_task_after_activating)
+
+
+def test_edit_name(repo_with_one_task: TaskRepository):
+    original_task = repo_with_one_task.get_by_id(1)
+    new_name = 'Updated task name'
+
+    repo_with_one_task.edit_name(1, new_name)
+
+    changed_task = repo_with_one_task.get_by_id(1)
+    expected_changed_task = Task(
+        name=new_name,
+        day_id=original_task.day_id,
+        type=original_task.type,
+        status=original_task.status
+    )
+
+    assert changed_task is not None, 'Can\'t find the changed task'
+    assert changed_task.id == original_task.id, 'Task changed its id'
+    _compare_task_objects_without_id(changed_task, expected_changed_task)
+
+
+def test_edit_name_of_non_existent_task_do_nothing(repo_with_one_task: TaskRepository):
+    task_in_bd = repo_with_one_task.get_by_id(1)
+    new_name = 'Updated task name'
+    try:
+        repo_with_one_task.edit_name(666, new_name)
+    except Exception as e:
+        pytest.fail('Editing name of non existent task got an exception but it shouldn\'t happen')
+    task_in_bd_after_function_call = repo_with_one_task.get_by_id(1)
+    assert task_in_bd_after_function_call is not None, 'Task was deleted'
+    _compare_task_objects_without_id(task_in_bd_after_function_call, task_in_bd)

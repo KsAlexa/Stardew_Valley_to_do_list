@@ -23,6 +23,7 @@ class DuplicateTaskNameException(Exception):
 class DuplicateDayException(Exception):
     def __init__(self, message: str):
         self.message = message
+        super().__init__(self.message)
 
 class MultipleActiveDaysException(Exception):
     def __init__(self, message: str):

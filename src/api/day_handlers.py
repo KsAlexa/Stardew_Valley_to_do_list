@@ -39,7 +39,6 @@ def set_current_day_handle(
     return _get_current_day_details(day_service, task_service)
 
 
-# надо при перелистывании дня оставлять tasks type == daily, а tasks type == one-time помечать завершенными make_task_completed()
 @router.post("/next", response_model=CurrentStateResponse, status_code=200)
 def set_next_day_handle(
         day_service: DayService = Depends(get_day_service),

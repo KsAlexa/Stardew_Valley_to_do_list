@@ -69,6 +69,8 @@ class TaskService:
         if task.status == 'completed':
             raise errors.InvalidTaskStateException(
                 f'Task with ID {id} is completed. To make it a daily task, make it active first')
+        if task.type == 'daily':
+            raise errors.InvalidTaskStateException(f'Task with ID {id} is already a daily task.')
 
         self.task_repository.make_daily(id)
         updated_task = self.task_repository.get_by_id(id)
@@ -79,6 +81,9 @@ class TaskService:
         task = self.get_by_id(id)
 
         self._check_task_in_current_day(task, current_day)
+
+        if task.type == 'one-time':
+            raise errors.InvalidTaskStateException(f'Task with ID {id} is already a one-time task.')
         self.task_repository.make_one_time(id)
         updated_task = self.task_repository.get_by_id(id)
         return updated_task
