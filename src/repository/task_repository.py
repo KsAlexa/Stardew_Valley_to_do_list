@@ -114,7 +114,7 @@ class TaskRepository:
         self.update_field(task_id, 'status', 'completed')
 
     def make_active(self, task_id: int, task_day_id: int):
-        self.update_field(task_id, 'status', 'active')
+        self.update_field(task_id, 'status', 'active') # TODO: make it one database query
         self.update_field(task_id, 'day_id', task_day_id)
 
     def make_daily(self, task_id: int):
