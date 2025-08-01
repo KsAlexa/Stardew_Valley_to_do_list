@@ -36,10 +36,31 @@ def client(test_db_path: str):
     app.dependency_overrides.clear()
 
 
-    # 1. Получить дефолтный день ОР: year=1, season = 'spring', day = 1
-    # 2. Создать 3 задачи ОР: задачи созданы такие
-    # 3. Переименовать 1 задачу ОР: переименована
-    # 4. Поменять тип 2 задачи ОР: поменян тип
-    # 5. Завершить 3 задачу ОР: завершена
-    # 6. Перейти на следующий день ОР: daily задача осталась, а one-day стала completed (но должна остаться в общем списке, итого в списке 2 задачи завершенные)
+@pytest.fixture
+def default_active_day():
+    return {
+        'id': 1,
+        'year': 1,
+        'season': 'spring', 
+        'number': 1,
+        'active': True
+    }
 
+@pytest.fixture
+def default_day_state(client, default_active_day):
+    response = client.get('/day/current')
+    assert response.status_code == 200
+    
+    state = response.json()
+    
+    current_day_info = state['current_day_info']
+    assert current_day_info['id'] == default_active_day['id']
+    assert current_day_info['year'] == default_active_day['year']
+    assert current_day_info['season'] == default_active_day['season']
+    assert current_day_info['number'] == default_active_day['number']
+    assert current_day_info['active'] == default_active_day['active']
+
+    assert len(current_day_info['tasks']) == 0
+    assert len(state['all_completed_tasks']) == 0
+    
+    return state

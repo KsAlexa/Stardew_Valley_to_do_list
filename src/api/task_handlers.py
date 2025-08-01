@@ -7,7 +7,8 @@ router = APIRouter(
     prefix="/task",
     tags=["task"],
     responses={404: {'description': 'Entity not found'},
-               400: {'description': 'Invalid state'}
+               400: {'description': 'Invalid state'}, 
+               409: {'description': 'Duplicate entity'}
                }
 )
 

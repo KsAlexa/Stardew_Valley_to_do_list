@@ -50,7 +50,7 @@ class SetCurrentDayRequest(BaseModel):
     number: int = Field(gt=0, le=28, description='Number must be a positive integer between 1 and 28')
 
 
-class DayResponse(BaseModel):
+class CurrentDayResponse(BaseModel):
     id: int
     year: int
     season: DaySeason
@@ -59,7 +59,7 @@ class DayResponse(BaseModel):
     tasks: List[TaskResponse] | None = None
 
     @classmethod
-    def from_day(cls, day: entities.Day, tasks: List[entities.Task] | None) -> 'DayResponse':
+    def from_day(cls, day: entities.Day, tasks: List[entities.Task] | None) -> 'CurrentDayResponse':
         task_responses = [TaskResponse.from_task(task) for task in tasks]
         return cls(
             id=day.id,
@@ -72,16 +72,16 @@ class DayResponse(BaseModel):
 
 
 class CurrentStateResponse(BaseModel):
-    current_day: DayResponse
+    current_day_info: CurrentDayResponse
     all_completed_tasks: List[TaskResponse]
 
     @classmethod
     def from_entities(cls, current_day: entities.Day, day_tasks: List[entities.Task],
                       completed_tasks: List[entities.Task]) -> 'CurrentStateResponse':
 
-        current_day_response = DayResponse.from_day(current_day, day_tasks)
+        current_day_response = CurrentDayResponse.from_day(current_day, day_tasks)
         completed_tasks_response = [TaskResponse.from_task(task) for task in completed_tasks]
         return cls(
-            current_day=current_day_response,
+            current_day_info=current_day_response,
             all_completed_tasks=completed_tasks_response
         )
