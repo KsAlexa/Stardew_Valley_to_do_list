@@ -180,3 +180,8 @@ def test_task_operations_check_active_day(task_service, mock_day_service,
     else:
         updated_task = task_service.make_completed(task.id)
         assert updated_task.status == 'completed'
+
+#def test_rename_task_from_another_day_should_fail()
+#def test_complete_task_from_another_day_should_fail()
+#def test_make_daily_task_from_another_day_should_fail()
+#def test_make_one_time_task_from_another_day_should_fail()

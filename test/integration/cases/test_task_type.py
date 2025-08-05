@@ -1,4 +1,5 @@
-# TODO: 4 задачи, 2 daily, 2 one-time, по 1 переименовать, перелистнуть день? (или в другие полноценные кейсы)
+
+# def test_make_one_time_task_daily()
 
 # 1. Получить текущий день.
 #     Проверяется фикстурой default_day_state:
@@ -12,3 +13,18 @@
 # 4. Перелистнуть день.
 #     ОР: Задачи не изменились
 # def test_daily_tasks_remain_when_change_day():
+
+
+#def test_rename_daily_task():
+
+#def test_make_daily_nonexistent_task_should_fail():
+
+#def test_complete_daily_task_should_fail():
+
+#def test_make_daily_task_daily_should_fail():
+
+#def test_make_daily_task_one_time()
+
+#def test_make_one_time_nonexistent_task_should_fail()
+
+#def test_make_one_time_task_one_time_should_fail()
