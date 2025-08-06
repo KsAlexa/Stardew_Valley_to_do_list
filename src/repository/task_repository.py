@@ -124,4 +124,9 @@ class TaskRepository:
         self.update_field(task_id, 'type', 'one-time')
 
     def edit_name(self, task_id: int, new_name: str):
-        self.update_field(task_id, 'name', new_name)
+        try:
+            self.update_field(task_id, 'name', new_name)
+        except sqlite3.IntegrityError:
+            raise DuplicateTaskNameException(
+                f'Task with name "{new_name}" already exists'
+                )

@@ -11,7 +11,7 @@ from src.migration import create_database_and_tables
 from src.api.handlers_models import *
 from typing import Callable, List
 from helpers import assert_task_data
-
+from service_client import ServiceClient
 
 @pytest.fixture
 def test_db_path(tmp_path: Path) -> str:
@@ -21,7 +21,7 @@ def test_db_path(tmp_path: Path) -> str:
 
 
 @pytest.fixture
-def client(test_db_path: str):
+def test_client(test_db_path: str):
     task_repo = TaskRepository(test_db_path)
     day_repo = DayRepository(test_db_path)
 
@@ -39,6 +39,10 @@ def client(test_db_path: str):
 
 
 @pytest.fixture
+def service_client(test_client: TestClient) -> ServiceClient:
+    return ServiceClient(test_client)
+
+@pytest.fixture
 def default_active_day() -> CurrentDayResponse:
     return CurrentDayResponse(
         id=1,
@@ -50,11 +54,8 @@ def default_active_day() -> CurrentDayResponse:
     )
 
 @pytest.fixture
-def default_day_state(client, default_active_day) -> CurrentStateResponse:
-    response = client.get('/day/current')
-    assert response.status_code == 200
-    
-    state = CurrentStateResponse(**response.json())
+def default_day_state(service_client, default_active_day) -> CurrentStateResponse:
+    state = service_client.get_current_state()
     
     current_day_info = state.current_day_info
 
@@ -71,7 +72,7 @@ def default_day_state(client, default_active_day) -> CurrentStateResponse:
     return state
 
 @pytest.fixture
-def task_factory(client, default_day_state: CurrentStateResponse) -> Callable[[int], List[TaskResponse]]:
+def task_factory(service_client, default_day_state: CurrentStateResponse) -> Callable[[int], List[TaskResponse]]:
     def _task_factory(tasks_count: int) -> List[TaskResponse]:
         if tasks_count <= 0:
             return []
@@ -81,14 +82,14 @@ def task_factory(client, default_day_state: CurrentStateResponse) -> Callable[[i
         
         for task_index in range(1, tasks_count + 1):
             task_name = f'Тестовая задача {task_index}'
-            response = client.post('/task/', json={'name': task_name})
-            assert response.status_code == 200
-            
-            created_task_obj = TaskResponse(**response.json())
+            request = CreateTaskRequest(name=task_name)
+            created_task_obj = service_client.create_task(request)
             
             assert_task_data(
                 created_task_obj, 
                 expected_name=task_name, 
+                expected_status=TaskStatus.active,
+                expected_type=TaskType.one_time,
                 expected_day_id=current_day_id
             )
             created_tasks_list.append(created_task_obj)

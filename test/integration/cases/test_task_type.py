@@ -14,7 +14,6 @@
 #     ОР: Задачи не изменились
 # def test_daily_tasks_remain_when_change_day():
 
-
 #def test_rename_daily_task():
 
 #def test_make_daily_nonexistent_task_should_fail():

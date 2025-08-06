@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import List
 from src import entities
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
 class DaySeason(str, Enum):
@@ -23,7 +23,13 @@ class TaskStatus(str, Enum):
 
 class CreateTaskRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
-    name: str = Field(min_length=1, description='Task name must have at least 1 character')
+    name: str
+    @field_validator('name')
+    @classmethod
+    def name_must_not_be_empty(cls, value: str) -> str:
+        if not value:
+            raise ValueError('Task name must have at least 1 character')
+        return value
 
 
 class TaskResponse(BaseModel):

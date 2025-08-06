@@ -67,7 +67,7 @@ def test_get_by_id(task_service, mock_task_repo):
 
 
 def test_get_by_id_of_non_existent_task(task_service, mock_task_repo):
-    non_existent_task_id = 999
+    non_existent_task_id = 88
     mock_task_repo.get_by_id.return_value = None
 
     with pytest.raises(errors.TaskNotFoundException) as exc_info:
@@ -93,7 +93,7 @@ def test_get_all_by_day_id(task_service, mock_task_repo):
 
 
 def test_get_all_by_day_id_empty_list(task_service, mock_task_repo):
-    non_existent_day_id = 999
+    non_existent_day_id = 88
     mock_task_repo.get_all_by_day_id.return_value = []
 
     tasks = task_service.get_all_by_day_id(non_existent_day_id)
@@ -264,7 +264,7 @@ def test_task_operations_invalid_states(task_service, mock_task_repo, mock_day_s
 def test_task_operations_not_in_active_day(task_service, mock_task_repo, mock_day_service, active_day, operation):
     mock_day_service.get_active.return_value = active_day
     task_id = 1
-    other_day_id = 999
+    other_day_id = 88
     task_from_other_day = Task(name='Task from other day', day_id=other_day_id, type='one-time', status='active', task_id=task_id)
 
     mock_task_repo.get_by_id.return_value = task_from_other_day

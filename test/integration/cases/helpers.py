@@ -11,9 +11,9 @@ def assert_task_data(
     expected_day_id: int
 ):
     if isinstance(task_data, dict):
-        task = TaskResponse(**task_data)
+        task = TaskResponse.model_validate(task_data)
     else:
-        task: task_data
+        task = task_data
     
     assert task.name == expected_name
     assert task.type == expected_type

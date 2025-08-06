@@ -99,10 +99,12 @@ class TaskService:
         if task.status == 'completed':
             raise errors.InvalidTaskStateException(
                 f'Task with ID {id} is completed. To edit it, make it active first.')
-
-        self.task_repository.edit_name(id, new_name)
-        updated_task = self.task_repository.get_by_id(id)
-        return updated_task
+        try:
+            self.task_repository.edit_name(id, new_name)
+            updated_task = self.task_repository.get_by_id(id)
+            return updated_task
+        except errors.DuplicateTaskNameException:
+            raise
 
     def _check_task_in_current_day(self, task: entities.Task, day: entities.Day):
         if task.day_id != day.id:

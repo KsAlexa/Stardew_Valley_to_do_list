@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from starlette.datastructures import State
 
 from src import migration, config
-from src.api import *
+from src.api import day_handlers, task_handlers
 from src.repository import DayRepository, TaskRepository
 from src.services import DayService, TaskService
 
@@ -45,3 +45,5 @@ app = Application(lifespan=lifespan)
 # Регистрация роутов
 app.include_router(day_handlers.router)
 app.include_router(task_handlers.router)
+
+from src.api import error_handlers

@@ -1,19 +1,23 @@
 class  InternalException(Exception):
     def __init__(self, message: str):
         self.message = message
+        super().__init__(self.message)
 
 
 class TaskNotFoundException(Exception):
     def __init__(self, message: str):
         self.message = message
+        super().__init__(self.message)
 
 class TaskNotInActiveDayError(Exception):
     def __init__(self, message: str):
         self.message = message
+        super().__init__(self.message)
 
 class InvalidTaskStateException(Exception):
     def __init__(self, message: str):
         self.message = message
+        super().__init__(self.message)
 
 class DuplicateTaskNameException(Exception):
     def __init__(self, message: str):

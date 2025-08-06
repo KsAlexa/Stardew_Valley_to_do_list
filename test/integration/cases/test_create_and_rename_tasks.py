@@ -1,7 +1,10 @@
 import pytest
-from fastapi.testclient import TestClient
 from helpers import assert_task_data
-
+from service_client import ServiceClient
+from src.api.handlers_models import *
+from typing import Callable, List, cast
+import requests
+import httpx
 # 1. Получить текущий день.
 #     Проверяется фикстурой default_day_state:
 #     ОР: Получен дефолтный день, Задач в текущем дне нет, Задач в списке выполненных задач нет
@@ -9,38 +12,30 @@ from helpers import assert_task_data
 #     ОР: 3 задачи созданы с правильными именами, имеют тип 'one-time', статус 'active', day_id соответствует текущему дню
 # 3. Получить текущий день.
 #     ОР: Задач в текущем дне 3, Задач в списке выполненных задач нет
-def test_create_tasks(client, default_day_state):
+def test_create_tasks(service_client: ServiceClient, default_day_state: CurrentStateResponse):
     task_names_list = ['Тестовая задача 1', 'Тестовая задача 2', 'Тестовая задача 3']
     current_day = default_day_state.current_day_info
 
-    created_tasks_from_response = []
+    created_tasks: List[TaskResponse] = []
     for task_name in task_names_list:
-        response = client.post('/task/', json={'name': task_name})
-        assert response.status_code == 200
+        request = CreateTaskRequest(name=task_name)
+        new_task = service_client.create_task(request)
 
-        task_data = response.json()
-        created_tasks_from_response.append(task_data)
+        assert new_task.name == task_name
+        assert new_task.type == TaskType.one_time
+        assert new_task.status == TaskStatus.active
+        assert new_task.day_id == current_day.id
+        created_tasks.append(new_task)
 
-        assert_task_data(
-            task_data,
-            expected_name=task_name,
-            expected_type='one-time',
-            expected_status='active',
-            expected_day_id=current_day.id
-        )
+    final_state = service_client.get_current_state()
+    final_tasks = final_state.current_day_info.tasks
+    assert len(final_tasks) == len(task_names_list)
+    assert len(final_state.all_completed_tasks) == 0
 
-    response = client.get('/day/current')
-    assert response.status_code == 200
-    current_state = response.json()
+    created_tasks.sort(key=lambda task: task.id)
+    final_tasks.sort(key=lambda task: task.id)
 
-    current_day_tasks_list = current_state['current_day_info']['tasks']
-    assert len(current_day_tasks_list) == len(task_names_list)
-    assert len(current_state['all_completed_tasks']) == 0
-
-    created_tasks_from_response.sort(key=lambda task: task['id'])
-    current_day_tasks_list.sort(key=lambda task: task['id'])
-    for created_task, current_day_task in zip(created_tasks_from_response, current_day_tasks_list):
-        assert created_task == current_day_task
+    assert created_tasks == final_tasks
 
 # 1. Создать дефолтный день с 3мя задачами.
 #     Создается и проверяется фикстурой task_factory:
@@ -50,18 +45,17 @@ def test_create_tasks(client, default_day_state):
 # 3. Получить текущий день.
 #     ОР: Задач в списке выполненных задач нет, Задач в текущем дне 3, переименованная задача имеет новое имя, остальные задачи не изменились
 
-def test_rename_task(client, task_factory):
+def test_rename_task(service_client: ServiceClient, task_factory: Callable[[int], List[TaskResponse]]):
     initial_tasks = task_factory(3)
     task_to_rename = initial_tasks[1]
     new_task_name = 'Новое имя 2-й задачи'
     other_initial_tasks = [initial_tasks[0], initial_tasks[2]]
 
-    response = client.patch(f'/task/{task_to_rename.id}/rename', json={'name': new_task_name})
-    assert response.status_code == 200
-    renamed_task_resp = response.json()
+    rename_request = CreateTaskRequest(name=new_task_name)
+    renamed_task = service_client.rename_task(task_to_rename.id, rename_request)
 
     assert_task_data(
-        renamed_task_resp,
+        renamed_task,
         expected_id=task_to_rename.id,
         expected_name=new_task_name,
         expected_type=task_to_rename.type,
@@ -69,19 +63,17 @@ def test_rename_task(client, task_factory):
         expected_day_id=task_to_rename.day_id
     )
 
-    response = client.get('/day/current')
-    assert response.status_code == 200
-    final_state_resp = response.json()
-    final_tasks_resp = final_state_resp['current_day_info']['tasks']
-    completed_tasks_resp = final_state_resp['all_completed_tasks']
+    final_state = service_client.get_current_state()
+    final_tasks = final_state.current_day_info.tasks
+    completed_tasks = final_state.all_completed_tasks
 
-    assert len(final_tasks_resp) == len(initial_tasks)
-    assert len(completed_tasks_resp) == 0
+    assert len(final_tasks) == len(initial_tasks)
+    assert len(completed_tasks) == 0
 
-    renamed_task_resp = next((task for task in final_tasks_resp if task['id'] == task_to_rename.id), None)
-    assert renamed_task_resp is not None
+    final_renamed_task = next((task for task in final_tasks if task.id == task_to_rename.id), None)
+    assert final_renamed_task is not None
     assert_task_data(
-        renamed_task_resp,
+        final_renamed_task,
         expected_id=task_to_rename.id,
         expected_name=new_task_name,
         expected_type=task_to_rename.type,
@@ -89,159 +81,174 @@ def test_rename_task(client, task_factory):
         expected_day_id=task_to_rename.day_id
     )
 
-    other_initial_tasks_dict = [task.model_dump() for task in other_initial_tasks]
-    other_final_tasks_resp = [task for task in final_tasks_resp if task['id'] in {task.id for task in other_initial_tasks}]
+    other_final_tasks = [task for task in final_tasks if task.id in {task.id for task in other_initial_tasks}]
+    other_final_tasks.sort(key=lambda task: task.id)
+    other_initial_tasks.sort(key=lambda task: task.id)
 
-    other_final_tasks_resp.sort(key=lambda task: task['id'])
-    other_initial_tasks_dict.sort(key=lambda task: task['id'])
-
-    assert other_final_tasks_resp == other_initial_tasks_dict
+    assert other_final_tasks == other_initial_tasks
 
 # 1. Получить текущий день.
 #     Проверяется фикстурой default_day_state:
 #     ОР: День получен, Задач в текущем дне нет, Задач в списке выполненных задач нет
 # 2. Создать задачу с пустым именем. Создать задачу только с пробелом.
-#     ОР: Задача не создана, возвращается ошибка 422 ValidationError (или Unprocessable Entity?): 'Task name must have at least 1 character'
+#     ОР: Задача не создана, возвращается ошибка 422 ValidationError (или Unprocessable Entity?): 'Task name must have at least 1 character'. Задач в текущем дне нет, Задач в списке выполненных задач нет
 @pytest.mark.parametrize('empty_name', ['', ' ', '\t', '\n', '  \t  \n  '])
-def test_create_task_with_empty_name_should_fail(client, default_day_state, empty_name):
-    current_day = default_day_state['current_day_info']
+def test_create_task_with_empty_name_should_fail(service_client: ServiceClient, default_day_state: CurrentStateResponse, empty_name: str):
+    with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        payload = {'name': empty_name}
+        service_client.create_task(cast(CreateTaskRequest, payload))
     
-    response = client.post('/task/', json={'name': empty_name})
+    response = exc_info.value.response
     assert response.status_code == 422
     
     error_detail = response.json()
     assert 'detail' in error_detail
-    assert any('Task name must have at least 1 character' in str(detail) for detail in error_detail['detail'])
-    # TODO: проверить, что ничего не создалось
+    assert any('Task name must have at least 1 character' in detail.get('msg', '') for detail in error_detail['detail'])
+
+    final_state = service_client.get_current_state()
+    assert len(final_state.current_day_info.tasks) == 0
+    assert len(final_state.all_completed_tasks) == 0    
 
 
-# 1. Получить текущий день.
-#     Проверяется фикстурой default_day_state:
-#     ОР: День получен, Задач в текущем дне нет, Задач в списке выполненных задач нет
-# 2. Создать задачу. Создать задачу только с пробелом
-#     ОР: Задача создана с правильным именем, имеет тип 'one-time', статус 'active', day_id соответствует текущему дню.
-# 3. Создать задачу с таким же именем.
-#     ОР: Задача не создана, возвращается ошибка 409 DuplicateTaskNameException: 'Task with name "{task.name}" already exists'.
-def test_create_task_with_duplicate_name_should_fail(client, default_day_state):
-    current_day = default_day_state['current_day_info']
-    task_name = 'Тестовая задача'
+# 1. Создать дефолтный день с 1 задачей.
+#     Создается и проверяется фикстурой task_factory:
+#     ОР: Задач в списке выполненных задач нет, 1 задача в текущем дне создана с правильным именем, имеет тип 'one-time', статус 'active', day_id соответствует текущему дню
+# 2. Создать задачу с таким же именем.
+#     ОР: Задача не создана, возвращается ошибка 409 DuplicateTaskNameException: 'Task with name "{task.name}" already exists'. Существующая задача не изменилась, Задач в текущем дне нет, Задач в списке выполненных задач нет
+def test_create_task_with_duplicate_name_should_fail(service_client: ServiceClient, task_factory: Callable[[int], TaskResponse]):
+    initial_task_list = task_factory(1)
+    initial_task = initial_task_list[0]
+    existing_name = initial_task.name
+
+    with pytest.raises(httpx.HTTPStatusError) as exc_info:
+        request = CreateTaskRequest(name=existing_name)
+        service_client.create_task(request)
     
-    response = client.post('/task/', json={'name': task_name})
-    assert response.status_code == 200
-    
-    task_data = response.json()
-    assert task_data['name'] == task_name
-    assert task_data['type'] == 'one-time'
-    assert task_data['status'] == 'active'
-    assert task_data['day_id'] == current_day['id']
-    
-    response = client.post('/task/', json={'name': task_name})
+    response = exc_info.value.response
     assert response.status_code == 409
     
-    error_data = response.json()
-    assert error_data['error'] == 'Task already exists'
-
+    error_response = response.json()
+    assert 'error' in error_response
+    assert error_response['error'] == f'Task with name "{existing_name}" already exists'
+    
+    final_state = service_client.get_current_state()
+    assert len(final_state.current_day_info.tasks) == 1
+    assert len(final_state.all_completed_tasks) == 0
+    
+    final_task = final_state.current_day_info.tasks[0]
+    assert_task_data(
+        final_task,
+        expected_id=initial_task.id,
+        expected_name=existing_name,
+        expected_type=initial_task.type,
+        expected_status=initial_task.status,
+        expected_day_id=initial_task.day_id
+    )
 
 
 # 1. Получить текущий день.
 #     Проверяется фикстурой default_day_state:
 #     ОР: День получен, Задач в текущем дне нет, Задач в списке выполненных задач нет
-# 2. Создать задачу.
-#     ОР: Задача создана с правильным именем, имеет тип 'one-time', статус 'active', day_id соответствует текущему дню.
-# 3. Поменять имя несуществующей задачи.
-#     ОР: Задача не создана, возвращается ошибка 404 EntityNotFound: 'Task with id "{task.id}" not found', существующая задача не изменилась
-def test_rename_nonexistent_task_should_fail(client, default_day_state):
-    current_day = default_day_state['current_day_info']
-    task_name = 'Тестовая задача'
-    new_task_name = 'Новое имя задачи'
-    
-    response = client.post('/task/', json={'name': task_name})
-    assert response.status_code == 200
-    
-    task_data = response.json()
-    existing_task_id = task_data['id']
-    assert task_data['name'] == task_name
-    assert task_data['type'] == 'one-time'
-    assert task_data['status'] == 'active'
-    assert task_data['day_id'] == current_day['id']
-    
-    nonexistent_task_id = existing_task_id + 99
-    response = client.patch(f'/task/{nonexistent_task_id}/rename', json={'name': new_task_name})
+# 2. Поменять имя несуществующей задачи.
+#     ОР: Задача не создана, возвращается ошибка 404 EntityNotFound: 'Task with id "{task.id}" not found', Задач в текущем дне нет, Задач в списке выполненных задач нет
+def test_rename_nonexistent_task_should_fail(service_client: ServiceClient, default_day_state: CurrentStateResponse):
+    name = 'Имя задачи'
+    task_id = 88
+    with pytest.raises(requests.HTTPError) as exc_info:
+        request = CreateTaskRequest(name)
+        service_client.rename_task(task_id, request)
+
+    response = exc_info.value.response
     assert response.status_code == 404
     
-    error_data = response.json()
-    assert error_data['error'] == 'Task not found'
-
-    response = client.get('/day/current')
-    assert response.status_code == 200
+    error_detail = response.json()
+    assert 'detail' in error_detail
+    assert any(f'Task with id {task_id} not found' in str(detail) for detail in error_detail['detail'])
     
-    state = response.json()
-    tasks = state['current_day_info']['tasks']
-    assert len(tasks) == 1
-    assert tasks[0]['id'] == task_data['id']
-    assert tasks[0]['name'] == task_data['name']
-    assert tasks[0]['type'] == task_data['type'] 
-    assert tasks[0]['status'] == task_data['status']
-    assert tasks[0]['day_id'] == task_data['day_id']
+    final_state = service_client.get_current_state()
+    assert len(final_state.current_day_info.tasks) == 0
+    assert len(final_state.all_completed_tasks) == 0   
 
-
-# 1. Получить текущий день.
-#     Проверяется фикстурой default_day_state:
-#     ОР: День получен, Задач в текущем дне нет, Задач в списке выполненных задач нет
-# 2. Создать задачу.
-#     ОР: Задача создана с правильным именем, имеет тип 'one-time', статус 'active', day_id соответствует текущему дню.
-# 3. Поменять имя задачи на пустую строку. Поменять имя задачи на пробел.
-#     ОР: Задача не создана, возвращается ошибка 422 ValidationError (или Unprocessable Entity?): 'Task name must have at least 1 character', существующая задача не изменилась
+# 1. Создать дефолтный день с 1 задачей.
+#     Создается и проверяется фикстурой task_factory:
+#     ОР: Задач в списке выполненных задач нет, 1 задача в текущем дне создана с правильным именем, имеет тип 'one-time', статус 'active', day_id соответствует текущему дню
+# 2. Поменять имя задачи на пустую строку. Поменять имя задачи на пробел.
+#     ОР: Задача не создана, возвращается ошибка 422 ValidationError (или Unprocessable Entity?): 'Task name must have at least 1 character', существующая задача не изменилась, Задач в списке выполненных задач нет
 @pytest.mark.parametrize("empty_name", ['', ' ', '\t', '\n', '  \t  \n  '])
-def test_rename_task_with_empty_name_should_fail(client, default_day_state, empty_name):
-    current_day = default_day_state['current_day_info']
-    task_name = 'Тестовая задача'
+def test_rename_task_with_empty_name_should_fail(service_client: ServiceClient, task_factory: Callable[[int], TaskResponse], empty_name: str):
+    initial_task = task_factory(1)[0]
     
-    response = client.post('/task/', json={'name': task_name})
-    assert response.status_code == 200
+    with pytest.raises(requests.HTTPError) as exc_info:
+        request = CreateTaskRequest(name=empty_name)
+        service_client.rename_task(initial_task.id, request)
     
-    task_data = response.json()
-    task_id = task_data['id']
-    assert task_data['name'] == task_name
-    assert task_data['type'] == 'one-time'
-    assert task_data['status'] == 'active'
-    assert task_data['day_id'] == current_day['id']
-    
-    response = client.patch(f'/task/{task_id}/rename', json={'name': empty_name})
+    response = exc_info.value.response
     assert response.status_code == 422
     
     error_detail = response.json()
     assert 'detail' in error_detail
     assert any('Task name must have at least 1 character' in str(detail) for detail in error_detail['detail'])
     
-    response = client.get('/day/current')
-    assert response.status_code == 200
+    final_state = service_client.get_current_state()
+    assert len(final_state.current_day_info.tasks) == 1
+    assert len(final_state.all_completed_tasks) == 0
+
+# 1. Создать дефолтный день с 2 задачами.
+#     Создается и проверяется фикстурой task_factory:
+#     ОР: Задач в списке выполненных задач нет, 2 задачи в текущем дне созданы с правильными именами, имеют тип 'one-time', статус 'active', day_id соответствуют текущему дню
+# 2. Переименовать одну задачу на имя другой задачи.
+#     ОР: Задача не переименована, возвращается ошибка 409 DuplicateTaskNameException: 'Task with name "{task.name}" already exists', обе задачи не изменились, Задач в списке выполненных задач нет
+def test_rename_task_to_duplicate_name_should_fail(service_client: ServiceClient, task_factory: Callable[[int], List[TaskResponse]]):
+    initial_tasks = task_factory(2)
+    task_to_rename = initial_tasks[0]
+    new_task_name = initial_tasks[1].name
     
-    state = response.json()
-    tasks = state['current_day_info']['tasks']
-    assert len(tasks) == 1
-    assert tasks[0]['id'] == task_data['id']
-    assert tasks[0]['name'] == task_data['name']
-    assert tasks[0]['type'] == task_data['type']
-    assert tasks[0]['status'] == task_data['status']
-    assert tasks[0]['day_id'] == task_data['day_id']
+    with pytest.raises(requests.HTTPError) as exc_info:
+        request = CreateTaskRequest(name=new_task_name)
+        service_client.rename_task(task_to_rename.id, request)
 
-# 1. Получить текущий день.
-#     Проверяется фикстурой default_day_state:
-#     ОР: День получен, Задач в текущем дне нет, Задач в списке выполненных задач нет
-# 2. Создать задачу.
-#     ОР: Задача создана с правильным именем, имеет тип 'one-time', статус 'active', day_id соответствует текущему дню.
-# 3. Переименовать задачу на то же самое имя.
-#     ОР: Задача переименована, остальные ее параметры не поменялись, остальные задачи не изменились
-def test_rename_task_to_same_name(client, default_day_state):
-    pass
+    response = exc_info.value.response
+    assert response.status_code == 409
+    
+    error_detail = response.json()
+    assert 'detail' in error_detail
+    assert any(f'Task with name "{new_task_name}" already exists' in str(detail) for detail in error_detail['detail'])
 
-# 1. Получить текущий день.
-#     Проверяется фикстурой default_day_state:
-#     ОР: День получен, Задач в текущем дне нет, Задач в списке выполненных задач нет
-# 2. Создать 2 задачи.
-#     ОР: Задачи созданы с правильными именами, имеют тип 'one-time', статус 'active', day_id соответствуют текущему дню.
-# 3. Переименовать одну задачу на имя другой задачи.
-#     ОР: Задача не переименована, возвращается ошибка 409 DuplicateTaskNameException: 'Task with name "{task.name}" already exists', обе задачи не изменились
-def test_rename_task_to_duplicate_name_should_fail(): #будет падать, нет обработки на existent name у edit_task
-    pass
+    final_state = service_client.get_current_state()
+    assert len(final_state.current_day_info.tasks) == 2
+    assert len(final_state.all_completed_tasks) == 0
+
+    final_tasks = final_state.current_day_info.tasks
+    final_tasks.sort(key=lambda task: task.id)
+    initial_tasks.sort(key=lambda task: task.id)
+    assert final_tasks == initial_tasks
+
+
+# 1. Создать дефолтный день с 1 задачей.
+#     Создается и проверяется фикстурой task_factory:
+#     ОР: Задач в списке выполненных задач нет, 1 задача в текущем дне создана с правильным именем, имеет тип 'one-time', статус 'active', day_id соответствует текущему дню
+# 2. Переименовать задачу на то же самое имя.
+#     ОР: Задача не переименована, возвращается ошибка 409 DuplicateTaskNameException: 'Task with name "{task.name}" already exists', В текущем дне так и осталась 1 задача, остальные параметры не изменились, Задач в списке выполненных задач нет
+def test_rename_task_to_same_name(service_client: ServiceClient, task_factory: Callable[[int], List[TaskResponse]]):
+    initial_task_list = task_factory(1)
+    initial_task = initial_task_list[0]
+    new_task_name = initial_task.name
+    
+    with pytest.raises(requests.HTTPError) as exc_info:
+        request = CreateTaskRequest(name=new_task_name)
+        service_client.rename_task(initial_task.id, request)
+        
+    response = exc_info.value.response
+    assert response.status_code == 409
+    
+    error_detail = response.json()
+    assert 'detail' in error_detail
+    assert any(f'Task with name "{new_task_name}" already exists' in str(detail) for detail in error_detail['detail'])
+    
+    final_state = service_client.get_current_state()
+    assert len(final_state.current_day_info.tasks) == 1
+    assert len(final_state.all_completed_tasks) == 0
+
+    final_task_list = final_state.current_day_info.tasks
+    
+    assert initial_task_list == final_task_list
