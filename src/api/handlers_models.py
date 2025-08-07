@@ -21,7 +21,7 @@ class TaskStatus(str, Enum):
     completed = 'completed'
 
 
-class CreateTaskRequest(BaseModel):
+class TaskNameRequest(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
     name: str
     @field_validator('name')

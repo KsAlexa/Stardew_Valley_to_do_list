@@ -82,7 +82,7 @@ def task_factory(service_client, default_day_state: CurrentStateResponse) -> Cal
         
         for task_index in range(1, tasks_count + 1):
             task_name = f'Тестовая задача {task_index}'
-            request = CreateTaskRequest(name=task_name)
+            request = TaskNameRequest(name=task_name)
             created_task_obj = service_client.create_task(request)
             
             assert_task_data(

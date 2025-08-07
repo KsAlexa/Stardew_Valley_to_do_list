@@ -15,7 +15,7 @@ router = APIRouter(
 
 @router.post("/", status_code=200)
 def create_task_handle(
-        request: CreateTaskRequest,
+        request: TaskNameRequest,
         task_service: TaskService = Depends(get_task_service)
 ) -> TaskResponse:
     new_task = task_service.create_task(request.name)
@@ -61,7 +61,7 @@ def make_task_one_time_handle(
 @router.patch("/{id}/rename", status_code=200)
 def rename_task_handle(
         id: int,
-        request: CreateTaskRequest,
+        request: TaskNameRequest,
         task_service: TaskService = Depends(get_task_service)
 ) -> TaskResponse:
     updated_task = task_service.edit_name(id, request.name)

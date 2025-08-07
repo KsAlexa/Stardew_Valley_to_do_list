@@ -20,7 +20,7 @@ class ServiceClient:
         response.raise_for_status()
         return CurrentStateResponse.model_validate(response.json())
 
-    def create_task(self, request: CreateTaskRequest) -> TaskResponse:
+    def create_task(self, request: TaskNameRequest) -> TaskResponse:
         if isinstance(request, BaseModel):
             payload = request.model_dump()
         else:
@@ -29,7 +29,7 @@ class ServiceClient:
         response.raise_for_status()
         return TaskResponse.model_validate(response.json())
 
-    def rename_task(self, task_id: int, request: CreateTaskRequest) -> TaskResponse:
+    def rename_task(self, task_id: int, request: TaskNameRequest) -> TaskResponse:
         if isinstance(request, BaseModel):
             payload = request.model_dump()
         else:

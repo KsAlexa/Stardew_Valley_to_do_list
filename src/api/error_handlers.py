@@ -27,7 +27,7 @@ async def multiple_active_days_exception_handler(_, exc):
 
 @get_app().exception_handler(TaskNotFoundException)
 async def task_not_found_exception_handler(_, exc):
-    data = {'error': 'Task not found'}
+    data = {'error': exc.message}
     return JSONResponse(content=data, status_code=404)
 
 
