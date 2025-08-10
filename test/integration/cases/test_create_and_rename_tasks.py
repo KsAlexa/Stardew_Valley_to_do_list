@@ -30,14 +30,14 @@ def test_create_tasks(service_client: ServiceClient, default_day_state: CurrentS
         created_tasks.append(new_task)
 
     final_state = service_client.get_current_state()
-    final_tasks = final_state.current_day_info.tasks
-    assert len(final_tasks) == len(task_names_list)
+    final_active_tasks = final_state.current_day_info.tasks
+    assert len(final_active_tasks) == len(task_names_list)
     assert len(final_state.all_completed_tasks) == 0
 
     created_tasks.sort(key=lambda task: task.id)
-    final_tasks.sort(key=lambda task: task.id)
+    final_active_tasks.sort(key=lambda task: task.id)
 
-    assert created_tasks == final_tasks
+    assert created_tasks == final_active_tasks
 
 
 # 1. Создать дефолтный день с 3мя задачами.
@@ -67,13 +67,13 @@ def test_rename_task(service_client: ServiceClient, task_factory: Callable[[int]
     )
 
     final_state = service_client.get_current_state()
-    final_tasks = final_state.current_day_info.tasks
+    final_active_tasks = final_state.current_day_info.tasks
     completed_tasks = final_state.all_completed_tasks
 
-    assert len(final_tasks) == len(initial_tasks)
+    assert len(final_active_tasks) == len(initial_tasks)
     assert len(completed_tasks) == 0
 
-    final_renamed_task = next((task for task in final_tasks if task.id == task_to_rename.id), None)
+    final_renamed_task = next((task for task in final_active_tasks if task.id == task_to_rename.id), None)
     assert final_renamed_task is not None
     assert_task_data(
         final_renamed_task,
@@ -84,11 +84,11 @@ def test_rename_task(service_client: ServiceClient, task_factory: Callable[[int]
         expected_day_id=task_to_rename.day_id
     )
 
-    other_final_tasks = [task for task in final_tasks if task.id in {task.id for task in other_initial_tasks}]
-    other_final_tasks.sort(key=lambda task: task.id)
+    other_final_active_tasks = [task for task in final_active_tasks if task.id in {task.id for task in other_initial_tasks}]
+    other_final_active_tasks.sort(key=lambda task: task.id)
     other_initial_tasks.sort(key=lambda task: task.id)
 
-    assert other_final_tasks == other_initial_tasks
+    assert other_final_active_tasks == other_initial_tasks
 
 
 # 1. Получить текущий день.
@@ -228,10 +228,10 @@ def test_rename_task_to_duplicate_name_should_fail(service_client: ServiceClient
     assert len(final_state.current_day_info.tasks) == 2
     assert len(final_state.all_completed_tasks) == 0
 
-    final_tasks = final_state.current_day_info.tasks
-    final_tasks.sort(key=lambda task: task.id)
+    final_active_tasks = final_state.current_day_info.tasks
+    final_active_tasks.sort(key=lambda task: task.id)
     initial_tasks.sort(key=lambda task: task.id)
-    assert final_tasks == initial_tasks
+    assert final_active_tasks == initial_tasks
 
 
 # 1. Создать дефолтный день с 1 задачей.
@@ -257,10 +257,10 @@ def test_rename_task_to_same_name(service_client: ServiceClient, task_factory: C
     )
 
     final_state = service_client.get_current_state()
-    final_task_list = final_state.current_day_info.tasks
+    final_active_task_list = final_state.current_day_info.tasks
 
     assert len(final_state.current_day_info.tasks) == 1
     assert len(final_state.all_completed_tasks) == 0
 
-    assert final_task_list == initial_task_list
+    assert final_active_task_list == initial_task_list
 
