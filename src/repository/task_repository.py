@@ -33,7 +33,8 @@ class TaskRepository:
             select_tasks_for_day_sql = """
                                        SELECT *
                                        FROM tasks
-                                       WHERE day_id = ?; \
+                                       WHERE day_id = ?
+                                       ORDER BY id; \
                                        """
             data = (day_id,)
             cursor.execute(select_tasks_for_day_sql, data)

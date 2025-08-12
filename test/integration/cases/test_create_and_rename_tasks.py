@@ -34,9 +34,6 @@ def test_create_tasks(service_client: ServiceClient, default_day_state: CurrentS
     assert len(final_active_tasks) == len(task_names_list)
     assert len(final_state.all_completed_tasks) == 0
 
-    created_tasks.sort(key=lambda task: task.id)
-    final_active_tasks.sort(key=lambda task: task.id)
-
     assert created_tasks == final_active_tasks
 
 
@@ -85,9 +82,6 @@ def test_rename_task(service_client: ServiceClient, task_factory: Callable[[int]
     )
 
     other_final_active_tasks = [task for task in final_active_tasks if task.id in {task.id for task in other_initial_tasks}]
-    other_final_active_tasks.sort(key=lambda task: task.id)
-    other_initial_tasks.sort(key=lambda task: task.id)
-
     assert other_final_active_tasks == other_initial_tasks
 
 
@@ -229,8 +223,6 @@ def test_rename_task_to_duplicate_name_should_fail(service_client: ServiceClient
     assert len(final_state.all_completed_tasks) == 0
 
     final_active_tasks = final_state.current_day_info.tasks
-    final_active_tasks.sort(key=lambda task: task.id)
-    initial_tasks.sort(key=lambda task: task.id)
     assert final_active_tasks == initial_tasks
 
 

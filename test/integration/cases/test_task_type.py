@@ -43,9 +43,6 @@ def test_make_one_time_task_daily(service_client: ServiceClient, task_factory: C
     )
 
     other_final_tasks = [task for task in final_active_tasks if task.id in {t.id for t in other_initial_tasks}]
-    other_final_tasks.sort(key=lambda task: task.id)
-    other_initial_tasks.sort(key=lambda task: task.id)
-
     assert other_final_tasks == other_initial_tasks
 
 # 1. Создать дефолтный день с 3мя задачами.
@@ -73,9 +70,6 @@ def test_daily_tasks_remain_when_change_day(service_client: ServiceClient, task_
     assert len(final_daily_tasks) == len(initial_tasks)
     assert len(state_after_switch.all_completed_tasks) == 0
 
-
-    final_daily_tasks.sort(key=lambda task: task.id)
-    initial_tasks.sort(key=lambda task: task.id)
 
     for final_task, initial_task in zip(final_daily_tasks, initial_tasks):
         assert_task_data(
@@ -130,9 +124,6 @@ def test_rename_daily_task(service_client: ServiceClient, task_factory: Callable
     )
 
     other_final_tasks = [task for task in final_active_tasks if task.id in {task.id for task in other_initial_tasks}]
-    other_final_tasks.sort(key=lambda task: task.id)
-    other_initial_tasks.sort(key=lambda task: task.id)
-
     for final_task, initial_task in zip(other_final_tasks, other_initial_tasks):
         assert_task_data(
             final_task,
@@ -184,9 +175,6 @@ def test_make_daily_task_one_time(service_client: ServiceClient, task_factory: C
     )
 
     other_final_tasks = [task for task in final_active_tasks if task.id in {task.id for task in other_initial_tasks}]
-    other_final_tasks.sort(key=lambda task: task.id)
-    other_initial_tasks.sort(key=lambda task: task.id)
-
     for final_task, initial_task in zip(other_final_tasks, other_initial_tasks):
         assert_task_data(
             final_task,

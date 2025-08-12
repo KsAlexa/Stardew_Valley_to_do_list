@@ -44,9 +44,6 @@ def test_complete_task_manual(service_client: ServiceClient, task_factory: Calla
     )
 
     other_final_active_task = [task for task in final_active_tasks if task.id in {task.id for task in other_initial_task}]
-    other_initial_task.sort(key=lambda task: task.id)
-    other_final_active_task.sort(key=lambda task: task.id)
-
     assert other_final_active_task == other_initial_task
 
 # 1. Создать дефолтный день с 3мя задачами.
@@ -63,9 +60,6 @@ def test_complete_task_automatically(service_client: ServiceClient, task_factory
 
     completed_tasks = state_after_switch.all_completed_tasks
     assert len(completed_tasks) == len(initial_tasks)
-
-    completed_tasks.sort(key=lambda task: task.id)
-    initial_tasks.sort(key=lambda task: task.id)
 
     for completed, initial in zip(completed_tasks, initial_tasks):
         assert_task_data(
@@ -119,9 +113,6 @@ def test_make_completed_task_active(service_client: ServiceClient, task_factory:
     )
 
     other_final_completed_tasks = final_state.all_completed_tasks
-    other_final_completed_tasks.sort(key=lambda task: task.id)
-    other_initial_tasks.sort(key=lambda task: task.id)  
-
     for completed, initial in zip(other_final_completed_tasks, other_initial_tasks):
         assert_task_data(
         completed,

@@ -10,7 +10,7 @@ from src.repository.day_repository import DayRepository
 from src.migration import create_database_and_tables
 from src.api.handlers_models import *
 from typing import Callable, List
-from helpers import assert_task_data
+from helpers import assert_task_data, assert_day_data
 from service_client import ServiceClient
 
 @pytest.fixture
@@ -59,14 +59,16 @@ def default_day_state(service_client, default_active_day) -> CurrentStateRespons
     
     current_day_info = state.current_day_info
 
-    assert current_day_info.id == default_active_day.id
-    assert current_day_info.year == default_active_day.year
-    assert current_day_info.season == default_active_day.season 
-    assert current_day_info.number == default_active_day.number
-    assert current_day_info.active == default_active_day.active
-# TODO: асерты для дня тоже отправятся в helpers
+    assert_day_data(
+        current_day_info,
+        expected_id=default_active_day.id,
+        expected_year=default_active_day.year,
+        expected_season=default_active_day.season,
+        expected_number=default_active_day.number,
+        expected_active=default_active_day.active,
+        expected_tasks=[]
+    )
 
-    assert len(current_day_info.tasks) == 0
     assert len(state.all_completed_tasks) == 0
     
     return state
@@ -98,3 +100,70 @@ def task_factory(service_client, default_day_state: CurrentStateResponse) -> Cal
         return created_tasks_list
 
     return _task_factory
+
+
+@pytest.fixture
+def day_with_three_tasks_factory(service_client) -> Callable[[SetCurrentDayRequest], tuple[CurrentStateResponse, TaskResponse, TaskResponse, TaskResponse]]:
+    def _day_factory(
+        request: SetCurrentDayRequest,
+        *,
+        active_one_time_name: str = 'Однодневная активная',
+        completed_one_time_name: str = 'Однодневная завершенная',
+        daily_name: str = 'Ежедневная задача',
+    ) -> tuple[CurrentStateResponse, TaskResponse, TaskResponse, TaskResponse]:
+
+        state_after_set = service_client.set_current_day(request)
+        current_day_id = state_after_set.current_day_info.id
+
+        assert_day_data(
+            state_after_set.current_day_info,
+            expected_year=request.year,
+            expected_season=request.season,
+            expected_number=request.number,
+            expected_active=True,
+            expected_tasks=[],
+        )
+
+        active_one_time_task = service_client.create_task(TaskNameRequest(name=active_one_time_name))
+        assert_task_data(
+            active_one_time_task,
+            expected_name=active_one_time_name,
+            expected_type=TaskType.one_time,
+            expected_status=TaskStatus.active,
+            expected_day_id=current_day_id,
+        )
+
+        new_task = service_client.create_task(TaskNameRequest(name=completed_one_time_name))
+        completed_one_time_task = service_client.complete_task(new_task.id)
+        assert_task_data(
+            completed_one_time_task,
+            expected_name=completed_one_time_name,
+            expected_type=TaskType.one_time,
+            expected_status=TaskStatus.completed,
+            expected_day_id=current_day_id,
+        )
+
+        new_task = service_client.create_task(TaskNameRequest(name=daily_name))
+        daily_task = service_client.make_task_daily(new_task.id)
+        assert_task_data(
+            daily_task,
+            expected_name=daily_name,
+            expected_type=TaskType.daily,
+            expected_status=TaskStatus.active,
+            expected_day_id=current_day_id,
+        )
+
+        state_with_tasks = service_client.get_current_state()
+        assert_day_data(
+            state_with_tasks.current_day_info,
+            expected_year=request.year,
+            expected_season=request.season,
+            expected_number=request.number,
+            expected_active=True,
+            expected_tasks=[active_one_time_task, daily_task],
+        )
+        assert len(state_with_tasks.all_completed_tasks) == 1
+
+        return state_with_tasks, active_one_time_task, completed_one_time_task, daily_task
+
+    return _day_factory
